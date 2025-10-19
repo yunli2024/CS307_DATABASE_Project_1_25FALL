@@ -1,5 +1,8 @@
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello, World!");
+        DatabaseImport databaseImport=new DatabaseImport();
+        databaseImport.importRecipesCsv("data/recipes.csv");
+        databaseImport.importReviewsCsv("data/reviews.csv");
+        databaseImport.importUserCsv("data/user.csv");
     }
 }
