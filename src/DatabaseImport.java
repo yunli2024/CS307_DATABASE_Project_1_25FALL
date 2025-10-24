@@ -129,6 +129,16 @@ public class DatabaseImport {
 
     }
 
+    public void importRecipesWithoutBatch(String path){
+        // todo 完成这两个对比较差方案，并给出具体时间结果对比和原因分析
+    }
+
+    public void importRecipesWithoutPreparedStatement(String path){
+
+    }
+
+    // todo 给出性能较好的优化方案
+
 
     // 辅助函数
     // 如果是空则设置为null值
@@ -155,7 +165,7 @@ public class DatabaseImport {
         int c;
         while ((c = r.read()) != -1) {
             char ch = (char) c;
-            rec.append(ch);
+            rec.append  (ch);
             if (ch == '"') {
                 r.mark(1);
                 int nc = r.read();
@@ -201,6 +211,24 @@ public class DatabaseImport {
         out.add(cur.toString());
         return out.toArray(new String[0]);
     }
+
+    public static void measureImportTime(String csvPath) {
+        DatabaseImport imp = new DatabaseImport();
+        long startTime = System.nanoTime();
+        try {
+            imp.importRecipesCsv(csvPath);
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            throw e;
+        }
+        long endTime = System.nanoTime();
+        double elapsedSeconds = (endTime - startTime) / 1_000_000_000.0;
+        System.out.printf("time: Import of %s took %.5f seconds.%n", csvPath, elapsedSeconds);
+    }
+
+
+
+
 
     /*
     private String[] parseCsvLine(String line) {
