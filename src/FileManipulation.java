@@ -13,6 +13,7 @@ public class FileManipulation implements DataManipulation {
     private static final String RECIPES_FILE = "recipes.txt";
     @Override
     public int addOneRecipe(String recipeData) {//完成
+        long startTime = System.currentTimeMillis();
         // 使用try-with-resources自动关闭文件资源
         try (FileWriter writer = new FileWriter(RECIPES_FILE, true)) {  // 以追加模式打开文件
             // 直接使用FileWriter写入，不使用缓冲
@@ -32,10 +33,14 @@ public class FileManipulation implements DataManipulation {
             // 捕获并打印I/O异常，如文件不存在或无权限访问
             e.printStackTrace();
             return 0; // 添加失败
+        }finally {
+            long endTime = System.currentTimeMillis();
+            System.out.println("File deleteRecipeById operation completed in " + (endTime - startTime) + " ms");
         }
     }
     @Override
     public int deleteRecipeById(int recipeId) {//完成
+        long startTime = System.currentTimeMillis();
         File inputFile = new File(RECIPES_FILE);  // 原始数据文件
         File tempFile = new File("temp_recipes.txt");  // 临时文件，用于存储修改后的数据
         boolean found = false;  // 标记是否找到要删除的记录
@@ -73,6 +78,9 @@ public class FileManipulation implements DataManipulation {
             // 捕获并打印I/O异常
             e.printStackTrace();
             return 0; // 删除失败
+        }finally {
+            long endTime = System.currentTimeMillis();
+            System.out.println("File deleteRecipeById operation completed in " + (endTime - startTime) + " ms");
         }
         // 文件替换操作：删除原文件并将临时文件重命名为原文件名
         if (inputFile.delete() && tempFile.renameTo(inputFile)) {
@@ -82,6 +90,7 @@ public class FileManipulation implements DataManipulation {
     }
     @Override
     public int updateRecipeRating(int recipeId, double newRating) {//完成
+        long startTime = System.currentTimeMillis();
         File inputFile = new File(RECIPES_FILE);  // 原始数据文件
         File tempFile = new File("temp_recipes.txt");  // 临时文件
         boolean updated = false;  // 标记是否更新了记录
@@ -133,6 +142,9 @@ public class FileManipulation implements DataManipulation {
             // 捕获并打印I/O异常
             e.printStackTrace();
             return 0; // 更新失败
+        }finally {
+            long endTime = System.currentTimeMillis();
+            System.out.println("File updateRecipeRating operation completed in " + (endTime - startTime) + " ms");
         }
         // 文件替换操作
         if (inputFile.delete() && tempFile.renameTo(inputFile)) {
@@ -142,6 +154,7 @@ public class FileManipulation implements DataManipulation {
     }
     @Override
     public String findRecipeById(int recipeId) {
+        long startTime = System.currentTimeMillis();
         File inputFile = new File(RECIPES_FILE);  // 原始数据文件
         File tempFile = new File("temp_recipes.txt");
         // 使用try-with-resources自动关闭文件资源
@@ -172,6 +185,10 @@ public class FileManipulation implements DataManipulation {
             // 捕获并打印I/O异常
             e.printStackTrace();
             return "Error reading file";
+        }finally {
+            long endTime = System.currentTimeMillis();
+            System.out.println("File findRecipeById operation completed in " + (endTime - startTime) + " ms");
         }
     }
 }
+
