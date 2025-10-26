@@ -154,5 +154,3 @@ Implements the `DataManipulation` interface and manages recipe data through file
    - Catches and prints all `IOException` exceptions.
    - Ensures performance monitoring logic is executed within a `finally` block, regardless of whether the operation was successful.
    - For delete and update operations, handles potential file system exceptions that may occur during the file replacement process.
-
-?descriptionFromFileType=function+toLocaleUpperCase()+{+[native+code]+}+File&mimeType=application/octet-stream&fileName=report+of+task4.md&fileType=undefined&fileExtension=md
