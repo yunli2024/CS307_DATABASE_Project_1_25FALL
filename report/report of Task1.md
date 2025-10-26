@@ -54,5 +54,3 @@ tool: draw.io
    - Each ingredient has one nutrition profile
 7. Recipe **has** Time
    - Each recipe has prep time and cook time
-
-?descriptionFromFileType=function+toLocaleUpperCase()+{+[native+code]+}+File&mimeType=application/octet-stream&fileName=report+of+Task1.md&fileType=undefined&fileExtension=md
