@@ -46,6 +46,7 @@ public class DatabaseManipulation implements DataManipulation {
 
     @Override
     public int addOneRecipe(String str) {//增加数据
+        long startTime = System.currentTimeMillis();
         getConnection();//调用getConnection方法建立数据库连接
         int result = 0;//用于存储SQL执行结果
         String sql = "insert into movies (RecipeId,Name,AuthorId,AuthorName," +
@@ -92,12 +93,15 @@ public class DatabaseManipulation implements DataManipulation {
             e.printStackTrace();
         } finally {//关闭数据库
             closeConnection();
+            long endTime = System.currentTimeMillis();
+            System.out.println("addOneRecipe operation total time: " + (endTime - startTime) + " ms");
         }
         return result;
     }
 
     @Override
     public String findRecipeById(int recipeId) {
+        long startTime = System.currentTimeMillis();
         getConnection();
         StringBuilder sb = new StringBuilder();
         String sql = "SELECT * FROM recipes WHERE RecipeId = ?";//参数化查询（ RecipeId = ? ）
@@ -136,6 +140,8 @@ public class DatabaseManipulation implements DataManipulation {
                 }
             }
             closeConnection();
+            long endTime = System.currentTimeMillis();
+            System.out.println("findRecipeById operation total time: " + (endTime - startTime) + " ms");
         }
 
         return sb.toString();
@@ -143,6 +149,7 @@ public class DatabaseManipulation implements DataManipulation {
 
     @Override
     public int updateRecipeRating(int recipeId, double newRating) {
+        long startTime = System.currentTimeMillis();
         getConnection();
         int result = 0;
         String sql = "UPDATE recipes SET AggregatedRating = ? WHERE RecipeId = ?";
@@ -164,12 +171,15 @@ public class DatabaseManipulation implements DataManipulation {
                 }
             }
             closeConnection();
+            long endTime = System.currentTimeMillis();
+            System.out.println("updateRecipeRating operation total time: " + (endTime - startTime) + " ms");
         }
 
         return result;
     }
     @Override
     public int deleteRecipeById(int recipeId) {
+        long startTime = System.currentTimeMillis();
         getConnection();
         int result = 0;
         String sql = "DELETE FROM recipes WHERE RecipeId = ?";
@@ -191,6 +201,8 @@ public class DatabaseManipulation implements DataManipulation {
                 }
             }
             closeConnection();
+            long endTime = System.currentTimeMillis();
+            System.out.println("deleteRecipeById operation total time: " + (endTime - startTime) + " ms");
         }
 
         return result;//返回删除数据的行数
