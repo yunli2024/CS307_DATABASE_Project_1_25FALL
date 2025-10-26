@@ -44,6 +44,7 @@ public class FileManipulation implements DataManipulation {
         File inputFile = new File(RECIPES_FILE);  // 原始数据文件
         File tempFile = new File("temp_recipes.txt");  // 临时文件，用于存储修改后的数据
         boolean found = false;  // 标记是否找到要删除的记录
+        int result = 0; // 存储最终结果
         // 使用try-with-resources自动关闭文件资源
         try (BufferedReader reader = new BufferedReader(new FileReader(inputFile));  // 读取原始文件
              FileWriter writer = new FileWriter(tempFile)) {  // 直接使用FileWriter写入，不使用缓冲
@@ -74,19 +75,21 @@ public class FileManipulation implements DataManipulation {
                     }
                 }
             }
+            // 文件替换操作：删除原文件并将临时文件重命名为原文件名
+            if (inputFile.delete() && tempFile.renameTo(inputFile)) {
+                result = found ? 1 : 0; // 返回是否找到并删除了记录
+            } else {
+                result = 0; // 文件替换失败
+            }
         } catch (IOException e) {
             // 捕获并打印I/O异常
             e.printStackTrace();
-            return 0; // 删除失败
+            result = 0; // 删除失败
         }finally {
             long endTime = System.currentTimeMillis();
             System.out.println("File deleteRecipeById operation completed in " + (endTime - startTime) + " ms");
         }
-        // 文件替换操作：删除原文件并将临时文件重命名为原文件名
-        if (inputFile.delete() && tempFile.renameTo(inputFile)) {
-            return found ? 1 : 0; // 返回是否找到并删除了记录
-        }
-        return 0; // 文件替换失败
+        return result;
     }
     @Override
     public int updateRecipeRating(int recipeId, double newRating) {//完成
@@ -94,6 +97,7 @@ public class FileManipulation implements DataManipulation {
         File inputFile = new File(RECIPES_FILE);  // 原始数据文件
         File tempFile = new File("temp_recipes.txt");  // 临时文件
         boolean updated = false;  // 标记是否更新了记录
+        int result = 0; // 存储最终结果
         // 使用try-with-resources自动关闭文件资源
         try (BufferedReader reader = new BufferedReader(new FileReader(inputFile));
              FileWriter writer = new FileWriter(tempFile)) {  // 直接使用FileWriter写入，不使用缓冲
@@ -138,19 +142,21 @@ public class FileManipulation implements DataManipulation {
                     }
                 }
             }
+             // 文件替换操作
+            if (inputFile.delete() && tempFile.renameTo(inputFile)) {
+                result = updated ? 1 : 0; // 返回是否更新了记录
+            } else {
+                result = 0; // 文件替换失败
+            }
         } catch (IOException e) {
             // 捕获并打印I/O异常
             e.printStackTrace();
-            return 0; // 更新失败
+            result = 0; // 更新失败
         }finally {
             long endTime = System.currentTimeMillis();
             System.out.println("File updateRecipeRating operation completed in " + (endTime - startTime) + " ms");
         }
-        // 文件替换操作
-        if (inputFile.delete() && tempFile.renameTo(inputFile)) {
-            return updated ? 1 : 0; // 返回是否更新了记录
-        }
-        return 0; // 文件替换失败
+        return result;
     }
     @Override
     public String findRecipeById(int recipeId) {
@@ -191,4 +197,5 @@ public class FileManipulation implements DataManipulation {
         }
     }
 }
+
 
