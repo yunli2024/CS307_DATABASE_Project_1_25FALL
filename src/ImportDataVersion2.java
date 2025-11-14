@@ -241,6 +241,63 @@ public class ImportDataVersion2 {
         return 0;
     }
 
+    // 只处理真正的 c("xxx","yyy") 多值字段：
+    private List<String> splitCList(String cell) {
+        List<String> res = new ArrayList<>();
+        if (cell == null) return res;
+
+        cell = cell.trim();
+        if (cell.isEmpty() || cell.equalsIgnoreCase("NA")) return res;
+
+        // 去掉整格最外层的引号："...." 或 '....'
+        if (cell.length() >= 2 &&
+                ((cell.charAt(0) == '"'  && cell.charAt(cell.length() - 1) == '"') ||
+                        (cell.charAt(0) == '\'' && cell.charAt(cell.length() - 1) == '\''))) {
+            cell = cell.substring(1, cell.length() - 1).trim();
+            if (cell.isEmpty()) return res;
+        }
+
+        // 到这里必须是 c( ... ) 才认为是多值字段
+        if (!(cell.startsWith("c(") && cell.endsWith(")"))) {
+            // 不是 c(...)，说明这格不是多值属性，比如 FavoriteUsers 之类
+            // 直接返回空列表，避免错误拆分出一堆数字
+            return res;
+        }
+
+        // 括号内部内容
+        String inner = cell.substring(2, cell.length() - 1).trim();
+        if (inner.isEmpty()) return res;
+
+        StringBuilder sb = new StringBuilder();
+        boolean inQuote = false;
+
+        for (int i = 0; i < inner.length(); i++) {
+            char ch = inner.charAt(i);
+            if (ch == '"') {
+                // 处理转义 "" -> 一个引号
+                if (inQuote && i + 1 < inner.length() && inner.charAt(i + 1) == '"') {
+                    sb.append('"');
+                    i++; // 跳过第二个 "
+                } else {
+                    inQuote = !inQuote; // 进入/退出引号
+                }
+            } else if (ch == ',' && !inQuote) {
+                // 逗号 & 不在引号内 -> 一个元素结束
+                String token = sb.toString().trim();
+                if (!token.isEmpty()) res.add(token);
+                sb.setLength(0);
+            } else {
+                sb.append(ch);
+            }
+        }
+
+        String token = sb.toString().trim();
+        if (!token.isEmpty()) res.add(token);
+
+        return res;
+    }
+
+
 
     /*
     正式进入导入的环节了
@@ -527,12 +584,16 @@ public class ImportDataVersion2 {
                 psR.addBatch();
 
                 // recipe_instruction：把整条指令当成一条记录插进去
-                String instrText = nullIfEmpty(getCell(c, iInstr));
-                if (instrText != null) {
+
+                // recipe_instruction：多值 c("step1","step2",...) 拆成多条记录
+                for (String instrText : splitCList(getCell(c, iInstr))) {
+                    if (instrText == null || instrText.isBlank()) continue;
                     psInstr.setInt(1, recipeId);
                     psInstr.setString(2, instrText);
                     psInstr.addBatch();
                 }
+
+
 
 
 
@@ -598,7 +659,9 @@ public class ImportDataVersion2 {
                 }
 
                 // keyword & recipe_keyword —— 显式分配 id
-                for (String kw : parseStringList(getCell(c, iKeywords))){
+
+                // keyword & recipe_keyword —— 显式分配 id
+                for (String kw : splitCList(getCell(c, iKeywords))) {
                     if (kw == null || kw.isBlank()) continue;
                     Integer kwId = kwCache.get(kw);
                     if (kwId == null) {
@@ -619,8 +682,10 @@ public class ImportDataVersion2 {
                     psRk.addBatch();
                 }
 
+
                 // ingredient & recipe_ingredient —— 显式分配 id
-                for (String ing : parseStringList(getCell(c, iIngredients))){
+                // ingredient & recipe_ingredient —— 显式分配 id
+                for (String ing : splitCList(getCell(c, iIngredients))) {
                     if (ing == null || ing.isBlank()) continue;
                     Integer ingId = ingCache.get(ing);
                     if (ingId == null) {
@@ -640,6 +705,7 @@ public class ImportDataVersion2 {
                     psRi.setInt(2, ingId);
                     psRi.addBatch();
                 }
+
 
                 if (++pend % BATCH == 0) {
                     psEnsureUser.executeBatch(); // 先确保 users
@@ -669,6 +735,7 @@ public class ImportDataVersion2 {
     }
 
     // 3) reviews & likes_relationship
+    // 3) reviews & likes_relationship
     public void importReviewsCsv(String csvPath){
         getConnection();
         final int BATCH = 1000;
@@ -684,13 +751,13 @@ public class ImportDataVersion2 {
                         "  AND EXISTS (SELECT 1 FROM reviews WHERE review_id = ?) " +
                         "ON CONFLICT DO NOTHING";
 
-
         try (BufferedReader br = new BufferedReader(new FileReader(csvPath));
              PreparedStatement psR = con.prepareStatement(SQL_REVIEW);
              PreparedStatement psL = con.prepareStatement(SQL_LIKE_SAFE)) {
 
             con.setAutoCommit(false);
 
+            // 读表头并做字段映射
             String first = readOneCsvRecord(br);
             if (first == null) { con.commit(); return; }
             if (first.length() > 0 && first.charAt(0) == '\uFEFF') first = first.substring(1);
@@ -706,40 +773,48 @@ public class ImportDataVersion2 {
             Integer iDateMod  = getIdx(H, "DateModified","date_modified");
             Integer iLikes    = getIdx(H, "Likes","likes");
 
-            int pend=0;
+            int pend = 0;
             String line;
+
             while ((line = readOneCsvRecord(br)) != null){
                 String[] c = splitCsvRecord(line);
+
+                // 1) 解析主键和外键
                 int rid = parseIdLoose(getCell(c, iReviewId));
                 int rec = parseIdLoose(getCell(c, iRecipeId));
                 int uid = parseIdLoose(getCell(c, iAuthorId));
-                if (rid<=0 || rec<=0 || uid<=0) continue;
+                if (rid <= 0 || rec <= 0 || uid <= 0) continue; // ID 不合法就整行丢弃
+
+                // 2) rating 必须存在且在 [0,5] 之间，否则整行丢弃
+                String ratStr = nullIfEmpty(getCell(c, iRating));
+                if (ratStr == null) continue;       // rating 为空，跳过这一条
+                int rating = parseIntSafe(ratStr, -1);
+                if (rating < 0 || rating > 5) continue; // 异常数字（比如你截图里的 110721），直接跳过
+
+                // 3) review 文本，允许空但是不能为 null（表里是 NOT NULL）
+                String reviewText = nullIfEmpty(getCell(c, iReview));
+                if (reviewText == null) reviewText = "";
+
+                // 4) 处理日期，只接受 YYYY-MM-DD，其他全部当作 null
+                String ds = sanitizeDateCell(getCell(c, iDateSub));
+                String dm = sanitizeDateCell(getCell(c, iDateMod));
 
                 psR.setInt(1, rid);
                 psR.setInt(2, rec);
                 psR.setInt(3, uid);
-                String rat = nullIfEmpty(getCell(c, iRating));
-                if (rat==null) psR.setNull(4, Types.INTEGER); else psR.setInt(4, parseIntSafe(rat,0));
-                psR.setString(5, nullIfEmpty(getCell(c, iReview)));
-                // 只接受 YYYY-MM-DD，其他一律视为 null
-                String ds = sanitizeDateCell(getCell(c, iDateSub));
-                String dm = sanitizeDateCell(getCell(c, iDateMod));
+                psR.setInt(4, rating);
+                psR.setString(5, reviewText);
 
-                if (ds == null) {
-                    psR.setNull(6, Types.VARCHAR);   // 会变成 NULL::date
-                } else {
-                    psR.setString(6, ds);            // 比如 "2000-01-25"
-                }
+                if (ds == null) psR.setNull(6, Types.VARCHAR);
+                else            psR.setString(6, ds);
 
-                if (dm == null) {
-                    psR.setNull(7, Types.VARCHAR);
-                } else {
-                    psR.setString(7, dm);
-                }
+                if (dm == null) psR.setNull(7, Types.VARCHAR);
+                else            psR.setString(7, dm);
+
                 psR.addBatch();
 
-
-                for (Integer liker : parseIntList(getCell(c, iLikes))){
+                // 5) 处理 Likes 列
+                for (Integer liker : parseIntList(getCell(c, iLikes))) {
                     if (liker == null || liker <= 0) continue;
                     psL.setInt(1, liker);
                     psL.setInt(2, rid);
@@ -748,16 +823,25 @@ public class ImportDataVersion2 {
                     psL.addBatch();
                 }
 
-                if (++pend % BATCH == 0){ psR.executeBatch(); psL.executeBatch(); }
-                if (pend % 10000 == 0) System.out.println("[reviews] done " + pend);
+                if (++pend % BATCH == 0) {
+                    psR.executeBatch();
+                    psL.executeBatch();
+                }
+                if (pend % 10000 == 0) {
+                    System.out.println("[reviews] done " + pend);
+                }
             }
 
-            psR.executeBatch(); psL.executeBatch();
+            psR.executeBatch();
+            psL.executeBatch();
             con.commit();
             System.out.println("[reviews + likes] import finished.");
-        } catch (Exception e){
+        } catch (Exception e) {
             try { if (con != null) con.rollback(); } catch (Exception ignore) {}
             throw new RuntimeException(e);
-        } finally { closeConnection(); }
+        } finally {
+            closeConnection();
+        }
     }
+
 }
