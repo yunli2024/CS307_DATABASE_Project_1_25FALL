@@ -1,8 +1,9 @@
 public class Main {
     public static void main(String[] args) {
-        DatabaseImport databaseImport=new DatabaseImport();
-        databaseImport.importRecipesCsv("data/recipes.csv");
-        databaseImport.importReviewsCsv("data/reviews.csv");
-        databaseImport.importUserCsv("data/user.csv");
+        ImportDataVersion2 importDataVersion2=new ImportDataVersion2();
+       importDataVersion2.importUsersCsv("data/user.csv");
+        importDataVersion2.importRecipesCsv("data/recipes.csv");
+        importDataVersion2.importReviewsCsv("data/reviews.csv");
+        //importDataVersion2.importReviewsCsv3("data/reviews.csv");
     }
 }
