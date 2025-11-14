@@ -26,7 +26,7 @@ CREATE TABLE recipes(
                         recipe_category     TEXT,
                         recipe_yield        TEXT,
                         recipe_servings     INT,
-                        aggregated_rating   NUMERIC(4,2),
+                        aggregated_rating   NUMERIC(10,4),
                         review_count        INT
 );
 
@@ -42,8 +42,8 @@ CREATE TABLE reviews(
                         review_id       INT PRIMARY KEY,
                         recipe_id       INT NOT NULL REFERENCES recipes(recipe_id),
                         user_id         INT NOT NULL REFERENCES users(author_id),
-                        rating          INT NOT NULL,
-                        review          TEXT NOT NULL,
+                        rating          INT , -- drop NOT NULL 避免报错
+                        review          TEXT , --drop NOT NULL 避免报错
                         date_submitted  DATE,
                         date_modified   DATE
 );
@@ -96,9 +96,9 @@ CREATE TABLE nutrition(
 -- recipe_time
 CREATE TABLE recipe_time(
                             recipe_id       INT PRIMARY KEY REFERENCES recipes(recipe_id),
-                            prepare_time    TIME,
-                            cook_time       TIME,
-                            total_time      TIME,
+                            prepare_time    INTERVAL, --还是需要interval，否则解析混乱
+                            cook_time       INTERVAL,
+                            total_time      INTERVAL,
                             date_published  DATE
 );
 
