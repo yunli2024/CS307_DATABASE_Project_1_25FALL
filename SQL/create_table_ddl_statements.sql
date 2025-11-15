@@ -82,15 +82,15 @@ CREATE TABLE recipe_ingredient(
 -- nutrition
 CREATE TABLE nutrition(
                           recipe_id        INT PRIMARY KEY REFERENCES recipes(recipe_id),
-                          calories         NUMERIC(7,1) NOT NULL,
-                          fat              NUMERIC(7,1),
-                          saturated_fat    NUMERIC(7,1),
-                          cholesterol      NUMERIC(7,1),
-                          protein          NUMERIC(7,1),
-                          sugar            NUMERIC(7,1),
-                          fiber            NUMERIC(7,1),
-                          carbohydrate     NUMERIC(7,1),
-                          sodium           NUMERIC(7,1)
+                          calories         NUMERIC(12,3) NOT NULL,
+                          fat              NUMERIC(12,3),
+                          saturated_fat    NUMERIC(12,3),
+                          cholesterol      NUMERIC(12,3),
+                          protein          NUMERIC(12,3),
+                          sugar            NUMERIC(12,3),
+                          fiber            NUMERIC(12,3),
+                          carbohydrate     NUMERIC(12,3),
+                          sodium           NUMERIC(12,3)
 );
 
 -- recipe_time
