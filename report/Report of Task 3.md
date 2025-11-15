@@ -1,8 +1,12 @@
-### **Report of Task 3**
+# **Report of Task 3**
 
-> draft 1024 liyunzang@SUSTech
+> draft 1024 liyunzang
+>
+> update 1114
+>
+> update advanced part 1115
 
-In this task, I implemented a Java program to import data from CSV files into the database designed in Task 2.
+​	In this task, I implemented a Java program to import data from CSV files into the database designed in Task 2.
 
 ### **Prerequisites**
 
@@ -10,47 +14,189 @@ In this task, I implemented a Java program to import data from CSV files into th
 
 2. The PostgreSQL **JDBC driver** must be added as a **project dependency**.
 
-   In IntelliJ IDEA: open *File → Project Structure → Modules → Dependencies*, and add the JAR file `postgresql-42.2.5.jar`.
+   In IntelliJ IDEA: open *File → Project Structure → Modules → Dependencies*, and add the JAR file `postgresql-42.2.5.jar`. The JAR file will be provided in the project directory.
 
 ### Code Execution Steps
 
-**Step 1. Connect to the database**
+#### **Step 1. Connect to the database**
 
 In the `getConnection()` method, the class `org.postgresql.Driver` is loaded to establish a connection to the local PostgreSQL server.
 The method uses the basic connection parameters — host, database name, user, password, and port — to build the JDBC URL and call `DriverManager.getConnection()`.
 Once the dependency is correctly imported, the driver initializes the connection channel using the PostgreSQL protocol; otherwise, the connection attempt will fail. So please you have down import dependency properly in the prerequisites part.
 
-**Step 2. Read data from CSV files**
- In the `readOneCsvRecord()` method, I use a `BufferedReader` to read the CSV file line by line. Specifically, the newline character (\n) is treated as the end of a record only when it appears outside quotation marks, ensuring that multi-line records are read correctly.
- After obtaining a complete CSV record, the `splitCsvRecord()` method is used to split the record into a string array, which then provides the values for the SQL `INSERT` statement in the next step.
+#### **Step 2. Read data from CSV files**
+The import program reads each CSV file using a lightweight line-based method. In `readOneCsvRecord()`, a `BufferedReader` retrieves one physical line at a time; empty lines are skipped, and `null` indicates the end of file.
 
-This design guarantees the robustness of CSV parsing when handling quoted fields, commas, and embedded newlines.
+After a complete line is obtained, the `splitCsvRecord()` method converts it into an array of fields. Instead of using `String.split(",")`, the method scans the line character by character. A boolean flag tracks whether the parser is currently inside quotation marks. Commas outside quotes are treated as field separators, while text inside quotes—including commas and escaped quotes—is preserved. This ensures that fields containing punctuation or quotation marks are handled safely.
 
-**Step 3. Import data**
+Once the row is split, the program uses a small set of helper utilities to interpret the raw strings:
 
-In the `importRecipesCsv()` method, I use a **parameterized** `PreparedStatement` to efficiently insert multiple rows into the database.
+// 这里可简要介绍一下工具类方法，看最后的篇幅吧，如果偏少了就写一写
 
-First, I define a SQL template `INSERT INTO recipes (...) VALUES (?,?,?,?,...)`, where each `?` serves as a placeholder for a column value. This design helps prevent SQL injection and improves performance through precompilation.
+These parsing steps standardize the incoming data and separate generic CSV handling from table-specific logic. All import methods in Step 3 reuse this shared parsing pipeline before converting the processed values into batched SQL insertions.
 
-Then, for each record obtained from Step 2, I set the corresponding parameters of the `PreparedStatement` using the parsed string array, and call `ps.addBatch()` to temporarily store the statement in memory.
+#### **Step 3. Import data**
 
-When the number of accumulated statements reaches the predefined **batch size**, the program executes all of them together using `ps.executeBatch()`. This **batch execution** greatly reduces the number of database round-trips and improves import speed compared to executing each `INSERT` individually.
+##### 3.1 Import `users.csv`
 
-还有一步，解释预编译机制和batch的方法为什么能做到efficient 但是在这里写还是在下面“优化”的部分写？感觉已经做完优化了，是否进行与不预编译的效率对比？？？
+The `importUsersCsv()` method reads the users information from *users.csv* and inserts it into the `users` table and the corresponding `following` relationship table.
 
-Similarly, we use `importReviewsCsv()` and ` importUsersCsv()` to import the other data.
+After obtaining a parsed CSV record from Step 2, the program extracts fields such as AuthorId, AuthorName, Gender, Age, and the follower/following lists. The follower and following lists are parsed into individual user-to-user relations, which are then inserted into the `following` table.
 
-**Step 4.Check the import correctness**
+A parameterized `PreparedStatement` is used for both tables to accelerate. For every valid record, parameters are assigned and inserted via `addBatch()`. Invalid IDs and malformed list fields are skipped to avoid insertion errors. When the batch size limit is reached, the statements are executed together using `executeBatch()`.
 
-After the data import process completed successfully, I verified the correctness by counting the total number of records in each entity table using SQL `COUNT(*)` queries.The results are as follows:
+##### **3.2 Import `recipes.csv`**
 
-| Table name | Number of records (rows) |
-| ---------- | ------------------------ |
-| `recipes`  | 532,108                  |
-| `reviews`  | TBD                      |
-| `users`    | TBD                      |
+The `importRecipesCsv()` method processes the complex *recipes.csv* file by distributing different fields into multiple tables according to the schema in Task 2.
 
-These numbers are consistent with the line counts of the original CSV files, indicating that all data have been successfully imported without loss or duplication.
+A single recipe record is decomposed and inserted into the following tables:`recipes` ，`nutrition`，`recipe_time`，`recipe_keyword`，`recipe_ingredient`，`recipe_instruction`，`recipe_favorite`, `keyword` and `ingredient`.Each table uses its own PreparedStatement.
+Time-related fields (PrepTime, CookTime, TotalTime) are converted  into SQL TIME values. The DatePublished field is parsed into DATE format with fallback handling for missing or invalid values.
+
+For multi-value fields such as Keywords, Ingredients, Instructions, and Favorites, the program splits the string into lists and inserts each item into its corresponding relationship table. Keywords and ingredients are also inserted into their dictionary tables (`keyword`, `ingredient`) with `ON CONFLICT DO NOTHING` to guarantee uniqueness.
+
+Invalid recipe IDs, empty fields, or unparseable values result in skipping that specific part or the entire record, depending on severity.
+
+Similarly, For every valid record, parameters are assigned and inserted via `addBatch()`.  When the batch size limit is reached, the statements are executed together using `executeBatch()`.
+
+##### **3.3 Import `reviews.csv`**
+
+The `importReviewsCsv()` method loads review data from *reviews.csv* and inserts it into `reviews` and`likes_relationship`.
+
+Each CSV record is parsed into ReviewId, RecipeId, UserId, Rating, Review text, submission date, modification date, and Likes.
+
+Since the database specifies `rating` as NOT NULL, any record with missing or invalid rating values is skipped.
+ Date fields are parsed into DATE type with safe null handling.
+
+The Likes field is split and inserted as multiple rows into `likes_relationship`. Duplicate likes and invalid user IDs are automatically filtered using `ON CONFLICT DO NOTHING`.`PreparedStatement` batching is applied here as well to maintain fast insertion speed for the large review dataset.
+
+##### 3.4 Conclusion of import data
+
+Here's the conclusion table for csv files, import method and the corressponding tables :
+
+| CSV File      | Import Method        | Affected Tables                                              |
+| ------------- | -------------------- | ------------------------------------------------------------ |
+| `users.csv`   | `importUsersCsv()`   | users, following                                             |
+| `recipes.csv` | `importRecipesCsv()` | recipes, nutrition, recipe_time, recipe_keyword, recipe_ingredient, recipe_instruction, recipe_favorite, keyword, ingredient |
+| `reviews.csv` | `importReviewsCsv()` | reviews, likes_relationship                                  |
+
+This modular, table-aware import pipeline ensures correctness, clarity, and efficiency when handling all three large CSV files.
+
+
+
+#### **Step 4.Check the import correctness**
+
+After the data import process completed successfully, I verified the correctness by counting the total number of records in each entity table using SQL `COUNT(*)` queries to find the result table.
+
+```postgresql
+-- counting the total number of records statements
+SELECT 'users'               AS table, COUNT(*) FROM users
+UNION ALL
+SELECT 'following'           AS table, COUNT(*) FROM following
+UNION ALL
+SELECT 'recipes'             AS table, COUNT(*) FROM recipes
+UNION ALL
+SELECT 'recipe_time'         AS table, COUNT(*) FROM recipe_time
+UNION ALL
+SELECT 'nutrition'           AS table, COUNT(*) FROM nutrition
+UNION ALL
+SELECT 'reviews'             AS table, COUNT(*) FROM reviews
+UNION ALL
+SELECT 'likes_relationship'  AS table, COUNT(*) FROM likes_relationship
+UNION ALL
+SELECT 'keyword'             AS table, COUNT(*) FROM keyword
+UNION ALL
+SELECT 'ingredient'          AS table, COUNT(*) FROM ingredient
+UNION ALL
+SELECT 'recipe_keyword'      AS table, COUNT(*) FROM recipe_keyword
+UNION ALL
+SELECT 'recipe_ingredient'   AS table, COUNT(*) FROM recipe_ingredient
+UNION ALL
+SELECT 'recipe_favorite'     AS table, COUNT(*) FROM recipe_favorite
+UNION ALL
+SELECT 'recipe_instruction'  AS table, COUNT(*) FROM recipe_instruction;
+```
+
+The results are as follows:
+
+| Table name           | Number of records (rows)              |
+| -------------------- | ------------------------------------- |
+| `users`              | 299,900                               |
+| `following`          | 2,365,946                             |
+| `recipes`            | 522,517                               |
+| `recipe_time`        | 522,517                               |
+| `nutrition`          | 486,050                               |
+| `reviews`            | 1,401,963 (可能有问题需要doublecheck) |
+| `like-relationship`  | 4,995,784                             |
+| `keyword`            | 309                                   |
+| `ingredient`         | 7215                                  |
+| `recipe_keyword`     | 2,313,507                             |
+| `recipe_ingredient`  | 3,711,214                             |
+| `recipe_favorite`    | 1,252,050                             |
+| `recipe_instruction` | 1,134,831                             |
+
+These numbers in the main tables are consistent with the line counts of the original CSV files, indicating that the csv data have been successfully imported without loss or duplication.
+
+
+
+### Advanced Part 
+
+My test environment are shown below.
+
+> CPU: AMD Ryzen 7 8745H (8 cores/16threads, with Radeon 780M Graphics)
+>
+> RAM size: 24GB
+>
+> DBMS: PostgreSQL 17.6 on x86_64-windows, compiled by msvc-19.44.35213, 64-bit
+>
+> Programming language:  Java SE 23.0.2 (64-bit)
+>
+> Compiler: Oracle JDK 23.0.2 (64-bit)
+>
+> Operating System: Windows 11 Home Chinese Edition, Version 24H2
+>
+> Database IDE version: DataGrip 2025.1.3
+>
+> Programming IDE version: IntelliJ IDEA 2024.3.3 (Ultimate Edition)
+
+##### 1、Comparative Evaluation of Multiple Data Import Strategies
+
+In the data importing part, I use some techniques to load data. In this part, I will try different strategies to evaluate the differences between import methods. Since the data source is large-scale, I will change the batch size and the use of preparedStatement to find their impact on the import time and programming efficiency.
+
+In order to measure the import time in a constant way, I use a new class `StopWatch` to measure the execution time of program. When the import process starts, the timer records the start timestamp, and it records the end timestamp when the import finishes. Finally, it will calculate the time used and print it into console, so that we can get the experiment data. This method is stable and efficient, and it minimizes the influence of initialization and I/O on the timing results.
+
+Note that some importing methods may quite time-consuming, so I only test on the `users.csv` file to compare the time.
+
+**The first group of experiments** focuses on batching techniques. I tried different method of a series of changing batch size, including a "NO BATCH" version, which means each line is inserted into the table individually. I execute every batch size seperately, and record the time they used. Repeat this procedure for 3 times to avoid some random disturb. The results are shown in the following table:(这里可以把每次实验的截图放在附件？)
+
+| Method                         | Batch size | Average time | comparision   |
+| ------------------------------ | ---------- | ------------ | ------------- |
+| importUsersCsvNoBatch()        | NO         | 190.307s     | 1×            |
+| importUsersCsvWith100Batch()   | 100 rows   | 55.947s      | 3.402x faster |
+| importUsersCsvWith1000Batch()  | 1000 rows  | 53.836s      | 3.535x faster |
+| importUsersCsvWith10000Batch() | 10000 rows | 51.693s      | 3.681x faster |
+
+And here is the picture for each runtime:
+
+![task3experiment1](Report of Task 3.assets/task3experiment1.png)
+
+
+
+The results of the group of experiments demonstrate the importance of the batching technique in the data importing process. When batching is disabled, the import procedure becomes significantly slower, taking almost 3.5 times longer than the batched versions. When batching is enabled, the import process complete in roughly the same time, with only small improvement as the batch size increases.Therefore, the conclusion is that: **The batch technique is important and efficiency-friendly in large-scale data importing. Once a reasonable batch size is chosen and rows are grouped together, the size will not affect importing time significantly.**
+
+The reason behind it is clearly to understand: Batching allows multiple insert operations to be grouped into a single request, which reduces communication overhead, minimizes repeated SQL parsing, and lowers the number of round-trip interactions with the database engine. So the import process becomes much more efficient as soon as batching is introduced.
+
+**The second group of experiments** focuses on the use of `PreparedStatement`.  In this part, I tried two importing  strategies: one using `PreparedStatement` with a preprocessing SQL sentence, the other straightforward constructs row SQL statement for each row. The only difference between two methods is the SQL construction method, and other factors stay the same. These experiments are repeated for 3 times to reduce disturb and finally calculate the result, which is shown in the following table:
+
+| Method                                | Type              | Average time | Comparison    |
+| ------------------------------------- | ----------------- | ------------ | ------------- |
+| importUsersWithoutPreparedStatement() | Statement         | 182.149s     | 1×            |
+| importUsersCsv()                      | PreparedStatement | 53.836s      | 3.383× faster |
+
+And here is the picture for each runtime:
+
+![task3experiment2](Report of Task 3.assets/task3experiment2.png)
+
+The results clearly show that the use of `PreparedStatement` brings a improvement in import speed and efficiency. When raw SQL strings are executed directly, the import becomes much slower because the database must parse and optimize every command separately. In contrast, the prepared version finishes in significantly less time and shows much more stable performance across repeated trials. Therefore, the conclusion is that **PreparedStatement technique is crucial for efficient large-scale imports, and removing it leads to performance degradation.**
 
 
 
@@ -58,23 +204,9 @@ These numbers are consistent with the line counts of the original CSV files, ind
 
 
 
+#### 2.optimization import efficiency
 
-
-后续todolist：
-
-1. 完成导入部分的另外两个的代码，在数据库设计好之后再进行。
-
-2. 设计不同的导入方法（分块，不进行预处理……）或者对当前的导入方法进行优化( 这里是对比还是优化？如果优化需要做什么方面？）需用用图表和数据呈现，描述区别和实际运行时间。这是比较难的这部分 advanced
-
-   感觉既要对比又要优化，早知道一开始写一个低一点了的。接下来需要找出更高效的方法，然后与低的对比，与高的检验。
-
-3. 需要给出验证是否导入正确的方法：number of records In each table 一定要有，还有其他比如null检验？
-
-4. 需要尝试自动化方法，呜呜。
-
-
-
-
+todo: op and result
 
 
 
