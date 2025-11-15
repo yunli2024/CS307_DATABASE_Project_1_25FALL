@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 //仅当 calories 非空时才写入 nutrition（其他列可空）；
 // 如果这一行完全没有营养数据或只有其他列而 calories 为空，就跳过这条 nutrition 记录（不影响其它表的插入）
 public class ImportDataVersion2 {
-    private Connection con = null;
+    public Connection con = null;
     private ResultSet resultSet;
     private String host = "localhost";
     private String dbname = "project1_25fall";
@@ -17,7 +17,7 @@ public class ImportDataVersion2 {
     private String port = "5432";
 
     // 连接与关闭连接
-    private void getConnection() {
+    void getConnection() {
         try { Class.forName("org.postgresql.Driver"); }
         catch (Exception e) {
             System.err.println("Cannot find the PostgreSQL driver. Check CLASSPATH.");
@@ -32,7 +32,7 @@ public class ImportDataVersion2 {
             System.exit(1);
         }
     }
-    private void closeConnection() {
+    void closeConnection() {
         if (con != null) {
             try { con.close(); con = null; } catch (Exception e) { e.printStackTrace(); }
         }
@@ -41,7 +41,7 @@ public class ImportDataVersion2 {
     // CSV 读取和拆分解析的工具方法
     // readOneCsvRecord 读取一条csv记录
     // 如果遇到了换行符，就删除掉最后的换行，使之成为纯净的记录
-    private String readOneCsvRecord(BufferedReader br) throws IOException {
+    String readOneCsvRecord(BufferedReader br) throws IOException {
         String s = br.readLine();
         if (s == null) return null;
         if (s.endsWith("\r\n")) s = s.substring(0, s.length()-2);
@@ -51,7 +51,7 @@ public class ImportDataVersion2 {
 
     // splitCsvRecord将得到的一行String变成一个String[]
     // 将record根据逗号进行拆分处理
-    private String[] splitCsvRecord(String record) {
+    String[] splitCsvRecord(String record) {
         ArrayList<String> out = new ArrayList<>();
         StringBuilder cur = new StringBuilder();
         boolean inQuotes = false; // 标志是否在引号内部
@@ -73,20 +73,20 @@ public class ImportDataVersion2 {
 
     // parseIntSafe 方法安全把字符串转化成int类型
     // 如果出现为空之类的情况或者转化失败，都返回一个def作为默认值
-    private int parseIntSafe(String s, int def) {
+    int parseIntSafe(String s, int def) {
         if (s == null) return def;
         s = s.trim(); if (s.isEmpty()) return def;
         try { return Integer.parseInt(s); } catch (Exception e){ return def; }
     }
     // 类似，安全转化为double类型
-    private Double parseDoubleSafe(String s, Double def) {
+    Double parseDoubleSafe(String s, Double def) {
         if (s == null) return def;
         s = s.trim(); if (s.isEmpty()) return def;
         try { return Double.valueOf(s); } catch (Exception e){ return def; }
     }
 
     // 工具类，如果为空就赋值为null，防止出现冲突
-    private String nullIfEmpty(String s){
+    String nullIfEmpty(String s){
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
@@ -96,7 +96,7 @@ public class ImportDataVersion2 {
     // sanitizeTimeCell方法检查字符串s是否符合一个时间的格式
     // 以 ISO 8601 duration作为标准，改成interval形式的
 
-    private String sanitizeTimeCell(String s) {
+    String sanitizeTimeCell(String s) {
         s = nullIfEmpty(s);
         if (s == null) return null;
 
@@ -172,7 +172,7 @@ public class ImportDataVersion2 {
         return totalSeconds + " seconds";
     }
     // 类似的，解析日期的方法，只接受XXXX-YY-ZZ 这种日期的格式
-    private String sanitizeDateCell(String s) {
+    String sanitizeDateCell(String s) {
         s = nullIfEmpty(s);
         if (s == null || s.length() < 10) return null;
 
@@ -187,16 +187,16 @@ public class ImportDataVersion2 {
 
     // 一些工具
     // 表头的映射
-    private Map<String,Integer> buildIndex(String[] header){
+    Map<String,Integer> buildIndex(String[] header){
         Map<String,Integer> mp = new HashMap<>();
         for(int i=0;i<header.length;i++) mp.put(header[i].trim(), i);
         return mp;
     }
-    private Integer getIdx(Map<String,Integer> mp, String... names){
+    Integer getIdx(Map<String, Integer> mp, String... names){
         for(String k: names){ Integer i = mp.get(k); if(i!=null) return i; }
         return null;
     }
-    private String getCell(String[] row, Integer idx){
+    String getCell(String[] row, Integer idx){
         return (idx==null || idx>=row.length) ? null : row[idx];
     }
 
@@ -214,7 +214,7 @@ public class ImportDataVersion2 {
         }
         return out;
     }
-    private List<Integer> parseIntList(String cell){
+    List<Integer> parseIntList(String cell){
         ArrayList<Integer> out = new ArrayList<>();
         if (cell == null) return out;
         var m = INT_EXTRACT.matcher(cell);
@@ -223,7 +223,7 @@ public class ImportDataVersion2 {
         }
         return out;
     }
-    private int parseIdLoose(String s){
+    int parseIdLoose(String s){
         if (s == null) return 0;
         s = s.trim();
         if (s.isEmpty()) return 0;
@@ -242,7 +242,7 @@ public class ImportDataVersion2 {
     }
 
     // 只处理真正的 c("xxx","yyy") 多值字段：
-    private List<String> splitCList(String cell) {
+    List<String> splitCList(String cell) {
         List<String> res = new ArrayList<>();
         if (cell == null) return res;
 
@@ -734,7 +734,7 @@ public class ImportDataVersion2 {
         } finally { closeConnection(); }
     }
 
-    // 3) reviews & likes_relationship
+
     // 3) reviews & likes_relationship
     public void importReviewsCsv(String csvPath){
         getConnection();
