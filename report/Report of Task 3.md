@@ -200,17 +200,13 @@ The results clearly show that the use of `PreparedStatement` brings a improvemen
 
 
 
-
-
-
-
 #### 2.optimize import efficiency
 
-Since we've choose a suitable batch size and apply preparedStatement in the initial import version, the following part will focus on the optimization in efficiency improvement.
+Since we have chosen a suitable batch size and apply PreparedStatement in the initial import version, the following part will focus on further efficiency optimization.
 
-In the original version, we use `EXISTS` keyword in the preparedStatement to check the existance of users, and then insert the following relationship, so that the foreign key won't conflict. This method is safe but might be time-consuming. In order to optimize the importing script, we must find a new way to double-check the existance.
+In the original version, we used `EXISTS` keyword in the PreparedStatement to check the existence of users, and then insert the following relationship, so that the foreign key won't conflict. This method is safe but might be time-consuming. In order to optimize the importing script, we must find a new way to double-check the existance.
 
-The target is to find users in a list, so the suitable data structure is `HashSet` or `HashMap`. We rewrite the `importUsersCsv` method, using simple `String SQL_FOLLOW` statement and leave the existance checkness to the Java edge. After that, in the stage of inserting to the `following` table, we read all the authorId from database, and store them in a hashSet. Finally, before the batch is executed, we only check whether the hashSet contains the certain user, instead of check them in the SQL statement. We use the batch size of 1000 rows and the other condition stay the same as comparsion version (previously mentioned, with the average time of 53.836 seconds). These experiments are repeated for 3 times to reduce disturb and finally calculate the result, which is shown in the following table:
+Since the task is essentially checking whether a user ID exists, `HashSet` (or `HashMap`) is an appropriate data structure. We rewrote the `importUsersCsv` method, using simple `String SQL_FOLLOW` statement and leave the existence checking to the Java side. After that, in the stage of inserting to the `following` table, we read all the authorId from database, and store them in a hashSet. Finally, before the batch is executed, we only check whether the hashSet contains the certain user, instead of check them in the SQL statement. We use the batch size of 1000 rows and the other condition stay the same as comparison version (previously mentioned, with the average time of 53.836 seconds). These experiments are repeated for 3 times to reduce disturb and finally calculate the result, which is shown in the following table:
 
 | Method                   | Type                   | Average time | Comparison    |
 | ------------------------ | ---------------------- | ------------ | ------------- |
@@ -221,6 +217,10 @@ And here is the picture for each runtime:
 
 ![task3optimization1](Report of Task 3.assets/task3optimization1.png)
 
-The results demostrate that replacing SQL `EXISTS` checks with an Java `HashSet` significantly improves the user import procedure. The original method using SQL `EXISTS` required an average of **53.836 seconds**, while the optimized version using `HashSet` took only **42.228 seconds** on average. This corresponds to an improvement of approximately **27%**.
+The results demonstrate that replacing SQL `EXISTS` checks with a Java `HashSet` significantly improves the user import procedure. The original method using SQL `EXISTS` required an average of **53.836 seconds**, while the optimized version using `HashSet` took only **42.228 seconds** on average. This corresponds to an improvement of approximately **27%**.
 
-The reason why this optimization works is checking foreign-key existence through SQL `EXISTS` requires PostgreSQL to do subqueries repeatedly. These repeat procedure significantly slow down the importing process. However, loading all valid user IDs into a Java `HashSet` allows each existence check to be completed in constant time **without contacting  to the database**. What's more, the application of hashSet filtered the redundency before insertion, which prevents unnecessary SQL statements from being executed. These factors result in observed approximately 27% improvement in overall import performance.
+The reason why this optimization works is checking foreign-key existence through SQL `EXISTS` requires PostgreSQL to do subqueries repeatedly. These repeated procedures significantly slow down the importing process. However, loading all valid user IDs into a Java `HashSet` allows each existence check to be completed in constant time **without contacting to the database**.Moreover, the application of hashSet filtered the redundency before insertion, which prevents unnecessary SQL statements from being executed. These factors result in observed approximately 27% improvement in overall import performance.
+
+In summary, this optimization is particularly suitable when the reference table can be fully loaded into memory. Since all IDs are stored in a `HashSet`, the lookup cost remains constant even when the number of following relationships becomes large. For data at the scale of several hundred thousand records, memory consumption is negligible and the in-memory checking significantly reduces repeated SQL operations. Therefore, this method works well where the entire IDs set can be cached efficiently.
+
+However, this optimization approach also have limitations. It may become less practical when the data grows to tens of millions of users, as the `HashSet` will require substantial memory. In such cases, the overhead of maintaining a large in-memory structure may offset the expected performance gain. Moreover, if the database schema or user table is frequently updated during import, the cached `HashSet` may be outdated and require refreshing. These factors limit this optimization for extremely large or dynamic datasets.
