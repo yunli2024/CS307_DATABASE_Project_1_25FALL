@@ -8,6 +8,7 @@ public class Main {
 
         // group1 normal import
         importDataVersion2.importUsersCsv("data/user.csv");
+        //optimization.importUsersCsvWithHashSet("data/user.csv");
         importDataVersion2.importRecipesCsv("data/recipes.csv");
         importDataVersion2.importReviewsCsv("data/reviews.csv");
 
@@ -24,7 +25,7 @@ public class Main {
 
 
         // group4 optimization with hashSet
-        // optimization.importUsersCsvWithHashSet("data/user.csv");
+
         watchA.stop();
         watchA.print("with HashSet method");
 

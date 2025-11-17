@@ -11,7 +11,7 @@ public class ImportDataVersion2 {
     public Connection con = null;
     private ResultSet resultSet;
     private String host = "localhost";
-    private String dbname = "project1_25fall";
+    public String dbname = "project1_25fall";
     private String user = "postgres";
     private String pwd = "000000";
     private String port = "5432";
@@ -41,13 +41,48 @@ public class ImportDataVersion2 {
     // CSV 读取和拆分解析的工具方法
     // readOneCsvRecord 读取一条csv记录
     // 如果遇到了换行符，就删除掉最后的换行，使之成为纯净的记录
+
+    // 尝试更新
     String readOneCsvRecord(BufferedReader br) throws IOException {
-        String s = br.readLine();
-        if (s == null) return null;
-        if (s.endsWith("\r\n")) s = s.substring(0, s.length()-2);
-        else if (s.endsWith("\n")) s = s.substring(0, s.length()-1);
-        return s;
+        StringBuilder sb = new StringBuilder();
+        String line;
+        boolean inQuotes = false;  // 当前是否处在 CSV 的引号字段内部
+
+        while (true) {
+            line = br.readLine();
+            if (line == null) {
+                // 文件读完了
+                if (sb.length() == 0) return null; // 一个字都没有 -> 真正 EOF
+                break;                             // 返回最后累积的一条
+            }
+
+            if (sb.length() > 0) {
+                // 只有在之前已经有内容时，才补一个换行；
+                // 这样原来字段里的换行可以保留下来
+                sb.append('\n');
+            }
+            sb.append(line);
+
+            // 扫描这一行，更新 inQuotes 状态
+            for (int i = 0; i < line.length(); i++) {
+                char ch = line.charAt(i);
+                if (ch == '"') {
+                    // 处理 CSV 中的 "" -> 转义双引号
+                    if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                        i++; // 跳过第二个 "
+                    } else {
+                        inQuotes = !inQuotes; // 进入 / 退出 引号字段
+                    }
+                }
+            }
+
+            // 如果当前已经不在引号里面了，这一条记录就结束了
+            if (!inQuotes) break;
+        }
+
+        return sb.toString();
     }
+
 
     // splitCsvRecord将得到的一行String变成一个String[]
     // 将record根据逗号进行拆分处理
@@ -259,8 +294,6 @@ public class ImportDataVersion2 {
 
         // 到这里必须是 c( ... ) 才认为是多值字段
         if (!(cell.startsWith("c(") && cell.endsWith(")"))) {
-            // 不是 c(...)，说明这格不是多值属性，比如 FavoriteUsers 之类
-            // 直接返回空列表，避免错误拆分出一堆数字
             return res;
         }
 
@@ -274,15 +307,13 @@ public class ImportDataVersion2 {
         for (int i = 0; i < inner.length(); i++) {
             char ch = inner.charAt(i);
             if (ch == '"') {
-                // 处理转义 "" -> 一个引号
                 if (inQuote && i + 1 < inner.length() && inner.charAt(i + 1) == '"') {
                     sb.append('"');
-                    i++; // 跳过第二个 "
+                    i++;
                 } else {
-                    inQuote = !inQuote; // 进入/退出引号
+                    inQuote = !inQuote;
                 }
             } else if (ch == ',' && !inQuote) {
-                // 逗号 & 不在引号内 -> 一个元素结束
                 String token = sb.toString().trim();
                 if (!token.isEmpty()) res.add(token);
                 sb.setLength(0);
@@ -390,10 +421,12 @@ public class ImportDataVersion2 {
 
                 if (++pendingUsers % BATCH == 0) psU.executeBatch();
                 if (pendingUsers % 10000 == 0) System.out.println("[users] done " + pendingUsers);
-
+                /*
                 for (Integer f : parseIntList(getCell(c, iFollowerUsers))) {
                     if (f != null && f > 0) edges.add(new int[]{f, uid});
                 }
+
+                 */
                 for (Integer fo : parseIntList(getCell(c, iFollowingUsers))) {
                     if (fo != null && fo > 0) edges.add(new int[]{uid, fo});
                 }
@@ -454,8 +487,6 @@ public class ImportDataVersion2 {
                         "ON CONFLICT (recipe_id) DO NOTHING";
 
 
-
-        // 只有 calories 非空才插入 nutrition（避免 NOT NULL 报错）
         final String SQL_NUTRITION =
                 "INSERT INTO nutrition(recipe_id, calories, fat, saturated_fat, cholesterol, protein, sugar, fiber, carbohydrate, sodium) " +
                         "VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT (recipe_id) DO NOTHING";
@@ -554,10 +585,7 @@ public class ImportDataVersion2 {
                 if (recipeId <= 0 || recipeId > 600000 || authorId <= 0) continue;
                 // 这里直接把不合理的数据全部过滤掉了
 
-                // —— 关键修复：author_name 兜底，保证非空 —— //
-                String authorName = nullIfEmpty(getCell(c, iAuthorName));
-                if (authorName == null) authorName = "user_" + authorId;
-
+                String authorName = "user_" + authorId;
                 // 先占位确保作者存在（不会破坏已存在记录）
                 psEnsureUser.setInt(1, authorId);
                 psEnsureUser.setString(2, authorName);
@@ -571,8 +599,12 @@ public class ImportDataVersion2 {
                 psR.setString(5, nullIfEmpty(getCell(c, iCat)));
                 psR.setString(6, nullIfEmpty(getCell(c, iYield)));
 
-                Integer serv = parseIntSafe(getCell(c, iServ), 0);
-                if (serv == 0) psR.setNull(7, Types.INTEGER); else psR.setInt(7, serv);
+                int serv = parseIdLoose(getCell(c, iServ));
+                if (serv <= 0) {
+                    psR.setNull(7, Types.INTEGER);
+                } else {
+                    psR.setInt(7, serv);
+                }
 
                 Double rating = parseDoubleSafe(getCell(c, iRating), null);
                 if (rating == null) psR.setNull(8, Types.NUMERIC); else psR.setObject(8, rating, Types.NUMERIC);
@@ -583,8 +615,6 @@ public class ImportDataVersion2 {
                 psR.setInt(10, authorId); // EXISTS(users)
                 psR.addBatch();
 
-                // recipe_instruction：把整条指令当成一条记录插进去
-
                 // recipe_instruction：多值 c("step1","step2",...) 拆成多条记录
                 for (String instrText : splitCList(getCell(c, iInstr))) {
                     if (instrText == null || instrText.isBlank()) continue;
@@ -594,13 +624,8 @@ public class ImportDataVersion2 {
                 }
 
 
-
-
-
-                // recipe_time
                 psT.setInt(1, recipeId);
 
-// 先过滤一下，明显不是时间的内容全部当成 null
                 String prep  = sanitizeTimeCell(getCell(c, iPrep));
                 String cook  = sanitizeTimeCell(getCell(c, iCook));
                 String total = sanitizeTimeCell(getCell(c, iTotal));
@@ -648,7 +673,6 @@ public class ImportDataVersion2 {
                     nutritionSkipped++;
                 }
 
-                // favorites（安全插入）
                 for (Integer uid: parseIntList(getCell(c, iFavUsers))){
                     if (uid == null || uid <= 0) continue;
                     psF.setInt(1, uid);
@@ -658,9 +682,6 @@ public class ImportDataVersion2 {
                     psF.addBatch();
                 }
 
-                // keyword & recipe_keyword —— 显式分配 id
-
-                // keyword & recipe_keyword —— 显式分配 id
                 for (String kw : splitCList(getCell(c, iKeywords))) {
                     if (kw == null || kw.isBlank()) continue;
                     Integer kwId = kwCache.get(kw);
@@ -683,8 +704,6 @@ public class ImportDataVersion2 {
                 }
 
 
-                // ingredient & recipe_ingredient —— 显式分配 id
-                // ingredient & recipe_ingredient —— 显式分配 id
                 for (String ing : splitCList(getCell(c, iIngredients))) {
                     if (ing == null || ing.isBlank()) continue;
                     Integer ingId = ingCache.get(ing);
@@ -779,23 +798,19 @@ public class ImportDataVersion2 {
             while ((line = readOneCsvRecord(br)) != null){
                 String[] c = splitCsvRecord(line);
 
-                // 1) 解析主键和外键
                 int rid = parseIdLoose(getCell(c, iReviewId));
                 int rec = parseIdLoose(getCell(c, iRecipeId));
                 int uid = parseIdLoose(getCell(c, iAuthorId));
                 if (rid <= 0 || rec <= 0 || uid <= 0) continue; // ID 不合法就整行丢弃
 
-                // 2) rating 必须存在且在 [0,5] 之间，否则整行丢弃
                 String ratStr = nullIfEmpty(getCell(c, iRating));
                 if (ratStr == null) continue;       // rating 为空，跳过这一条
                 int rating = parseIntSafe(ratStr, -1);
                 if (rating < 0 || rating > 5) continue; // 异常数字（比如你截图里的 110721），直接跳过
 
-                // 3) review 文本，允许空但是不能为 null（表里是 NOT NULL）
                 String reviewText = nullIfEmpty(getCell(c, iReview));
                 if (reviewText == null) reviewText = "";
 
-                // 4) 处理日期，只接受 YYYY-MM-DD，其他全部当作 null
                 String ds = sanitizeDateCell(getCell(c, iDateSub));
                 String dm = sanitizeDateCell(getCell(c, iDateMod));
 
@@ -813,7 +828,6 @@ public class ImportDataVersion2 {
 
                 psR.addBatch();
 
-                // 5) 处理 Likes 列
                 for (Integer liker : parseIntList(getCell(c, iLikes))) {
                     if (liker == null || liker <= 0) continue;
                     psL.setInt(1, liker);
