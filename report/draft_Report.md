@@ -1,8 +1,105 @@
-## Task 3
+# CS307 Project1 Report
+
+## Group Information
+
+12410922 李允臧
+
+12412460 吴 桐
+
+## TASK 1: ER Diagram
+
+I use the tool **draw.io** to finish this **ER Diagram**
+
+![CS307_ER_vesion1](draft_Report.assets/CS307_ER_vesion1.png)
+
+#### Entities: 这一部分可能看情况删，因为task2也有这部分
+
+- **User**
+  - Primary Key: AuthorId
+  - Attributes: AuthorName、Gender、Age
+- **Review**
+  - Primary Key: ReviewId
+  - Attributes: Rating、Review、DataSubmitted、DateModified、Likes
+- **Recipe**
+  - Primary Key: RecipeId
+  - Attributes: Description、Name、RecipeCategory、RecipeInstructions、RecipeYield、RecipeServings
+- **Keyword**
+  - Primary Key: KeywordId
+  - Attributes: Keyword
+- **Ingredient**
+  - Primary Key: IngredientId
+  - Attributes: Ingredient
+- **Nutrition**
+  - Primary Key: NutritionId
+  - Attributes: Calories、Fat、SaturatedFat、Cholesterol、Sodium、Carbohydrate、Fiber、Sugar、Protein
+- **Time**
+  - Primary Key: TimeId
+  - Attributes: DataPublished、CookTime、PrepTime
+
+#### Relationship:
+
+1. User **reviews** Recipe
+   - One user can review multiple recipes
+   - One recipe can be reviewed by multiple users
+2. User **follows** User
+   - Users can follow each other
+3. User **favourites** Recipe
+   - One user can favourite multiple recipes
+   - One recipe can be favourited by multiple users
+4. Recipe **has** Keyword
+   - One recipe can have multiple keywords
+   - One keyword can be associated with multiple recipes
+5. Recipe **needs** Ingredient
+   - One recipe needs multiple ingredients
+   - One ingredient can be used in multiple recipes
+6. Ingredient **has** Nutrition
+   - Each ingredient has one nutrition profile
+7. Recipe **has** Time
+   - Each recipe has prep time and cook time
+
+## TASK 2: Database Design
+
+In this TASK, I write DDL statements to create tables and columns according to the ER diagram. The SQL file is uploaded as attached file.Then I generate  the database diagram by using the" Show Visualization" feature of Datagrip. The picture is shown below: 
+
+![visualization_ver2](draft_Report.assets/visualization_ver2.png)
+
+
+
+The following part is a brief description of the meaning of tables and columns. We **designed 13 tables** and will explain them separately. Finally, I will explain the reason that this design cater to all the requirements.
+
+##### Description of tables and columns 
+
+1. `users` table stores all the users' information. It includes **author_id** as primary key, **author_name** as the name which is NOT NULL, **gender** which is an enum type and **age**.
+2. `recipes`  table stores the recipe information. It includes **recipe_id** as primary key, **author_id** which is the author of this recipe as foreign key reference to **author_id** in `users`,the **recipe_name** which is NOT NULL, the **description**, the **recipe_category** which is this recipe belong to,the **recipe_yield** which is the output of this recipe, the **aggregated_rating** which is the score obtained of this recipe, the **review_count** which is the reviewer number of this recipe, and **recipe_servings** indicating the number of servings.
+3. `reviews` table stores the review information. It includes **review_id** as primary key, **recipe_id** as foreign key reference to `recipes` , **user_id** as foreign key reference to `users` , **rating** which is the score given to this recipe, **review** which is the detailed review content, **date_submitted** with type DATE which is the date of review submitted,**date_modified** which is the latest modification.
+4. `following` table stores the follow relationships among users. It includes a composite primary key (**follower_id**, **followee_id**), both as foreign keys referencing `users(author_id)`, recording each directed follow relationship. 
+5. `recipe_favorite` table stores the user that favorites one recipe. It includes a composite primary key of(**user_id,recipe_id**), as foreign key to `users` and `recipes` , respectively.
+6. `like_relationship` stores the user that likes one review. It includes a composite primary key of( **user_id,review_id**), as foreign key to `users` and `reviews` , respectively.
+7. `keyword` stores a list of all possible keywords. It includes **keyword_id** as primary key, **keyword** as the content which is UNIQUE NOT NULL.
+8. `recipe_keyword` stores the relationship between `recipes` and `keyword`, It includes a composite primary key of(**recipe_id,keyword_id**), as foreign key to `recipes` and `keyword` , respectively.
+9. `ingredient` stores a list of all possible ingredients. It includes **ingredient_id** as primary key, **ingredient** as the content which is UNIQUE NOT NULL.
+10. `recipe_ingredient` stores the relationship between `recipes` and `ingredient`, It includes a composite primary key of(**recipe_id,ingredient_id**), as foreign key to `recipes` and `ingredient`, respectively.
+11. `nutrition` table stores the nutrition information for each recipe. It includes **recipe_id** as both the primary key and foreign key referencing `recipes(recipe_id)`, along with **calories**, **fat**, **carbohydrates**, **protein**, etc. Each numeric value uses a suitable type.
+12. `recipe_time` stores the time information relevant to each recipe. It includes **recipe_id** as primary key and foreign key reference to`recipes`, **prepare_time** which is the time need to prepare with type interval, **cook_time** which is the time need to cook with type interval, **total_time **which is the sum of prepare and cook time with type interval, **date_published** which is the date of this recipe published.
+13. `recipe_instruction` table stores detailed step-by-step cooking instructions. It includes **recipe_id** as foreign key referencing recipes and **instruction** as NOT NULL. The composite primary key (**recipe_id**, **instruction**) ensures no duplicate steps for the same recipe.
+
+##### Compliance with Requirements and Normal Forms
+
+​	The database design meets all the requirements and normal forms. It can manage all the information mentioned in the document. It contains primary key and foreign key which uniquely identify each row. Every table is not isolated and the database contains no circular links. What's more, each table has at least one NOT NULL column, and has suitable data type for columns.
+
+​	The database design also satisfies the three normal forms.
+
+- **1NF:** All attributes are atomic. Multivalued columns in the original dataset (such as ingredients, keywords, likes, following and instructions) are separated into relationship tables to remove repeating groups.  
+- **2NF:** Each non-key attribute fully depends on the whole primary key. Composite tables (`recipe_keyword`, `recipe_ingredient`) have no partial dependencies.  
+- **3NF:** No transitive dependencies exist among non-key attributes. Derived attributes like `review_count` are optional and can be omitted to avoid redundancy.  
+
+In summary, this design achieves data integrity, consistency, and scalability, satisfying the requirements of Task 2.
+
+## TASK 3 : Data Import 
 
 In this task, I execute some data preprocess to clean the row data, and implemented a Java program to import data from CSV files into the database which designed in Task 2.
 
-### Data preprocess
+### Data Preprocess
 
 Before truly importing the data into the relational database designed in TASK 2, we preprocess the data in the three csv files and identified several data quality issues that might lead to incosistencies or meaningless. To ensure the correctness and reliablity of subsequent steps, it is necessary to preprocess the data and normalize it before importing into database. So This section focus on these three aspects of preprocessing: deleting confused or meaningless records, correcting inconsistent attributes using other fields within the same record, and resolving data type problems.
 
@@ -14,7 +111,7 @@ The third problem includes data type errors. In `reviews.csv`, every RecipeId co
 
 In practical part, we used a python script to clean and preprocess row csv files and fixed all the problems mentioned previously. The source code will be attached as `data preprocess.py` file. There might be other strange data that haven't been covered, which will be processed in the following inserting part. The preprocess result is shown below:
 
-![9f5e91dbdfc31e8aacffda08bd9ccb6e](Report of Task 3.assets/9f5e91dbdfc31e8aacffda08bd9ccb6e.png)
+![9f5e91dbdfc31e8aacffda08bd9ccb6e](draft_Report.assets/9f5e91dbdfc31e8aacffda08bd9ccb6e.png)
 
 
 
@@ -35,6 +132,7 @@ The method uses the basic connection parameters — host, database name, user, p
 Once the dependency is correctly imported, the driver initializes the connection channel using the PostgreSQL protocol; otherwise, the connection attempt will fail. So please you have down import dependency properly in the prerequisites part.
 
 #### **Step 2. Read data from CSV files**
+
 The import program reads each CSV file using a lightweight line-based method. In `readOneCsvRecord()`, a `BufferedReader` retrieves one physical line at a time; empty lines are skipped, and `null` indicates the end of file.
 
 After a complete line is obtained, the `splitCsvRecord()` method converts it into an array of fields. Instead of using `String.split(",")`, the method scans the line character by character. A boolean flag tracks whether the parser is currently inside quotation marks. Commas outside quotes are treated as field separators, while text inside quotes—including commas and escaped quotes—is preserved. This ensures that fields containing punctuation or quotation marks are handled safely.
@@ -154,7 +252,7 @@ Note that some importing methods may quite time-consuming, so I only test on the
 
 And here is the picture for each runtime:
 
-![task3experiment1](Report of Task 3.assets/task3experiment1-1763400855869-2.png)
+![task3experiment1](draft_Report.assets/task3experiment1-1763400855869-2.png)
 
 
 
@@ -171,7 +269,7 @@ The reason behind it is clearly to understand: Batching allows multiple insert o
 
 And here is the picture for each runtime:
 
-![task3experiment2](Report of Task 3.assets/task3experiment2.png)
+![task3experiment2](draft_Report.assets/task3experiment2.png)
 
 The results clearly show that the use of `PreparedStatement` brings a improvement in import speed and efficiency. When raw SQL strings are executed directly, the import becomes much slower because the database must parse and optimize every command separately. In contrast, the prepared version finishes in significantly less time and shows much more stable performance across repeated trials. Therefore, the conclusion is that **PreparedStatement technique is crucial for efficient large-scale imports, and removing it leads to performance degradation.**
 
@@ -192,7 +290,7 @@ Since the task is essentially checking whether a user ID exists, `HashSet` (or `
 
 And here is the picture for each runtime:
 
-![task3optimization1](Report of Task 3.assets/task3optimization1.png)
+![task3optimization1](draft_Report.assets/task3optimization1.png)
 
 The results demonstrate that replacing SQL `EXISTS` checks with a Java `HashSet` significantly improves the user import procedure. The original method using SQL `EXISTS` required an average of **53.836 seconds**, while the optimized version using `HashSet` took only **42.228 seconds** on average. This corresponds to an improvement of approximately **27%**.
 
