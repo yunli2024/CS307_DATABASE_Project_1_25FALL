@@ -1,11 +1,9 @@
 package task4;
 
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
-
 public class DatabaseBetter {
     private Connection con;
     private final String host = "localhost";
@@ -13,8 +11,6 @@ public class DatabaseBetter {
     private final String user = "postgres";
     private final String pwd = "WT060519";
     private final String port = "5432";
-
-    // 获取数据库连接
     private void getConnection() {
         try {
             Class.forName("org.postgresql.Driver");
@@ -29,22 +25,17 @@ public class DatabaseBetter {
             System.exit(1);
         }
     }
-
-    // 关闭数据库连接
     private void closeConnection() {
         try {
             if (con != null) con.close();
         } catch (SQLException ignored) {}
     }
-
-    // 插入数据到数据库并返回执行时间
     public long insertUsers(String csvFilePath) {
         long startTime = System.nanoTime();
         String sql = "INSERT INTO task4advance2.users (authorid, authorname, gender, age, followers, following) VALUES (?, ?, ?, ?, ?, ?)";
         try {
             getConnection();
-            con.setAutoCommit(false);  // 禁用自动提交，手动控制事务
-
+            con.setAutoCommit(false);
             BufferedReader br = new BufferedReader(new FileReader(csvFilePath));
             String line;
             PreparedStatement preparedStatement = con.prepareStatement(sql);
@@ -59,7 +50,6 @@ public class DatabaseBetter {
                 } else {
                     throw new IllegalArgumentException("Invalid gender value: " + gender);
                 }
-
                 preparedStatement.setInt(1, Integer.parseInt(userInfo[0]));
                 preparedStatement.setString(2, userInfo[1]);
                 preparedStatement.setString(3, gender);
@@ -67,26 +57,23 @@ public class DatabaseBetter {
                 preparedStatement.setInt(5, Integer.parseInt(userInfo[4]));
                 preparedStatement.setInt(6, Integer.parseInt(userInfo[5]));
                 preparedStatement.addBatch();
-
-                // 批量插入，每1000条执行一次
                 if (++count % 1000 == 0) {
                     preparedStatement.executeBatch();
                 }
             }
-            // 执行剩余的批次
             preparedStatement.executeBatch();
-            con.commit();  // 提交事务
+            con.commit(); 
             br.close();
         } catch (SQLException | IOException e) {
             try {
-                con.rollback();  // 出现错误时回滚
+                con.rollback(); 
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
             e.printStackTrace();
         } finally {
             try {
-                con.setAutoCommit(true);  // 恢复默认的自动提交模式
+                con.setAutoCommit(true);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -94,8 +81,6 @@ public class DatabaseBetter {
         }
         return (System.nanoTime() - startTime) / 1_000_000;  // 返回执行时间，单位：毫秒
     }
-
-    // 查询与CSV文件ID相同的数据个数，并返回执行时间
     public long queryUsers(String csvFilePath) {
         long startTime = System.nanoTime();
         String sql = "SELECT COUNT(*) FROM task4advance2.users WHERE authorid = ?";
@@ -122,8 +107,6 @@ public class DatabaseBetter {
         }
         return (System.nanoTime() - startTime) / 1_000_000;  // 返回执行时间，单位：毫秒
     }
-
-    // 更新与CSV文件ID相同的记录的age字段，并返回执行时间
     public long updateUsersAge(String csvFilePath) {
         long startTime = System.nanoTime();
         String sql = "UPDATE task4advance2.users SET age = age + 1 WHERE authorid = ?";
@@ -140,26 +123,23 @@ public class DatabaseBetter {
                 int authorId = Integer.parseInt(userInfo[0]);
                 preparedStatement.setInt(1, authorId);
                 preparedStatement.addBatch();
-
-                // 批量更新，每1000条执行一次
                 if (++count % 1000 == 0) {
                     preparedStatement.executeBatch();
                 }
             }
-            // 执行剩余的批次
             preparedStatement.executeBatch();
-            con.commit();  // 提交事务
+            con.commit();  
             br.close();
         } catch (SQLException | IOException e) {
             try {
-                con.rollback();  // 出现错误时回滚
+                con.rollback(); 
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
             e.printStackTrace();
         } finally {
             try {
-                con.setAutoCommit(true);  // 恢复默认的自动提交模式
+                con.setAutoCommit(true); 
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -167,8 +147,6 @@ public class DatabaseBetter {
         }
         return (System.nanoTime() - startTime) / 1_000_000;  // 返回执行时间，单位：毫秒
     }
-
-    // 删除与CSV文件ID相同的数据，并返回执行时间
     public long deleteUsers(String csvFilePath) {
         long startTime = System.nanoTime();
         String sql = "DELETE FROM task4advance2.users WHERE authorid = ?";
@@ -185,26 +163,23 @@ public class DatabaseBetter {
                 int authorId = Integer.parseInt(userInfo[0]);
                 preparedStatement.setInt(1, authorId);
                 preparedStatement.addBatch();
-
-                // 批量删除，每1000条执行一次
                 if (++count % 1000 == 0) {
                     preparedStatement.executeBatch();
                 }
             }
-            // 执行剩余的批次
             preparedStatement.executeBatch();
-            con.commit();  // 提交事务
+            con.commit();  
             br.close();
         } catch (SQLException | IOException e) {
             try {
-                con.rollback();  // 出现错误时回滚
+                con.rollback();  
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
             e.printStackTrace();
         } finally {
             try {
-                con.setAutoCommit(true);  // 恢复默认的自动提交模式
+                con.setAutoCommit(true);  
             } catch (SQLException e) {
                 e.printStackTrace();
             }
