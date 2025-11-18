@@ -12,8 +12,7 @@ public class DatabaseOperations {
     private final String user = "postgres";
     private final String pwd = "WT060519";
     private final String port = "5432";
-
-    // 获取数据库连接
+    
     private void getConnection() {
         try {
             Class.forName("org.postgresql.Driver");
@@ -28,13 +27,9 @@ public class DatabaseOperations {
             System.exit(1);
         }
     }
-
-    // 关闭数据库连接
     private void closeConnection() {
         try { if (con != null) con.close(); } catch (Exception ignored) {}
     }
-
-    // 插入数据到数据库并返回执行时间
     public long insertUsers(String csvFilePath) {
         long startTime = System.nanoTime();
         String sql = "INSERT INTO task4advance2.users (authorid, authorname, gender, age, followers, following) VALUES (?, ?, ?, ?, ?, ?)";
@@ -68,10 +63,8 @@ public class DatabaseOperations {
         } finally {
             closeConnection();
         }
-        return (System.nanoTime() - startTime) / 1_000_000;  // 返回执行时间，单位：毫秒
+        return (System.nanoTime() - startTime) / 1_000_000; 
     }
-
-    // 查询与CSV文件ID相同的数据个数，并返回执行时间
     public long queryUsers(String csvFilePath) {
         long startTime = System.nanoTime();
         String sql = "SELECT COUNT(*) FROM task4advance2.users WHERE authorid = ?";
@@ -87,7 +80,7 @@ public class DatabaseOperations {
                 preparedStatement.setInt(1, authorId);
                 ResultSet rs = preparedStatement.executeQuery();
                 if (rs.next()) {
-                    rs.getInt(1);  // 获取查询结果，但不需要做其他操作
+                    rs.getInt(1);  
                 }
             }
             br.close();
@@ -96,10 +89,8 @@ public class DatabaseOperations {
         } finally {
             closeConnection();
         }
-        return (System.nanoTime() - startTime) / 1_000_000;  // 返回执行时间，单位：毫秒
+        return (System.nanoTime() - startTime) / 1_000_000;  
     }
-
-    // 更新与CSV文件ID相同的记录的age字段，并返回执行时间
     public long updateUsersAge(String csvFilePath) {
         long startTime = System.nanoTime();
         String sql = "UPDATE task4advance2.users SET age = age + 1 WHERE authorid = ?";
@@ -121,10 +112,8 @@ public class DatabaseOperations {
         } finally {
             closeConnection();
         }
-        return (System.nanoTime() - startTime) / 1_000_000;  // 返回执行时间，单位：毫秒
+        return (System.nanoTime() - startTime) / 1_000_000; 
     }
-
-    // 删除与CSV文件ID相同的数据，并返回执行时间
     public long deleteUsers(String csvFilePath) {
         long startTime = System.nanoTime();
         String sql = "DELETE FROM task4advance2.users WHERE authorid = ?";
@@ -146,6 +135,6 @@ public class DatabaseOperations {
         } finally {
             closeConnection();
         }
-        return (System.nanoTime() - startTime) / 1_000_000;  // 返回执行时间，单位：毫秒
+        return (System.nanoTime() - startTime) / 1_000_000;  
     }
 }
