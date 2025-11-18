@@ -1,189 +1,98 @@
-# CS307 task4 basic part
+# CS307 task4 basic EN
 
-1. ### 测试环境
+### 1. Test Environment
 
-#### a. 硬件规格
+#### a. Hardware Specifications
 
-CPU 型号：Intel Core Ultra 5 125H @ 3.60GHz
+- CPU Model: Intel Core Ultra 5 125H @ 3.60GHz
+- Memory Capacity: 32GB
+- Storage: 1 TB NVMe SSD
 
-内存容量：32GB
+#### b. Software Specifications
 
-存储：1 TB NVMe SSD
+- DBMS Version: PostgreSQL 17.6 (64-bit)
+- Operating System: Windows 11
+- Programming Language: Java
+- Development Environment: Java 17 (JDK 17.0.4.1), javac 17.0.4.1
+- JDBC Driver: postgresql-42.2.5.jar
 
-#### b. 软件规格
+### 2. Test Data Organization
 
-DBMS 版本：PostgreSQL 17.6 (64-bit)
+#### Data Storage Description
 
-操作系统：Windows 11
+- **user.csv**: Contains all user data (provided by the instructor), used for importing initial data into the DBMS `user` table and file system.
+- **user_10000.csv**: Contains 10,000 rows of user data (created by the user), randomly selected 10,000 entries from `user.csv` with an added 3,000,000 to the `author_id` to prevent violations of primary key uniqueness. Used for DBMS `recipe` table insertion tests and file system `recipe.txt` insertion tests.
+- **users table**: The table in the DBMS that stores user data (created by the user), containing data from `user.csv`, used for insert, update, query, and delete tests in the database system.
+- **users.txt**: A file in the file system that stores all user data (created by the user), used for insert, update, query, and delete tests in the file system.
 
-编程语言：Java
+#### Data Organization in DBMS
 
-开发环境：Java 17 (JDK 17.0.4.1), javac 17.0.4.1
+In the PostgreSQL database, test data is organized in relational table structures. The specific implementation is as follows:
 
-JDBC 驱动: postgresql-42.2.5.jar
+- **Table Structure Design**: The `users` table stores recipe information, which includes the following fields: `author_id` (primary key), `author_name`, `gender`, `age`, `followers_count`, `following_count`.
+- **Data Types**: Different data types are used according to the field meaning, such as integer (`author_id`), text (`author_name`), and enum (`gender`), ensuring the accuracy of data types and optimization of storage space.
+- **Constraints**: `author_id` as the primary key ensures the uniqueness of each record, allowing for fast location and querying.
+- **Index Optimization**: The database automatically creates indexes for primary key fields, significantly improving query performance, especially for exact queries on the ID field.
 
-### 2.测试数据组织方式
+#### Data Organization in File System
 
-#### 数据存储说明
+In the file system, test data is organized as text files. The specific implementation is as follows:
 
-- user.csv：存储全部用户数据（由教师提供），用于向 DBMS 的user表和文件系统导入初始数据。
-- user_10000.csv：存储 10000 行用户数据（自行创建），随机抽取user中的10000条，在author_id上加上3000000，防止违反主键的唯一性导致插入失败。用于 DBMS 的 recipe 表插入测试和文件系统的 recipe.txt 插入测试。
-- users表：DBMS 中存储用户数据的表（自行创建），数据均来源于 user.csv，用于数据库系统的插入、更新、查询和删除测试
-- users.txt：文件系统中存储全部菜谱数据的文件（自行创建），用于文件系统的插入、更新、查询和删除测试。
+- **File Format**: Simple text files (e.g., `users.txt`) store all user records.
+- **Record Separation**: Each record occupies one line, separated by a newline character (`\n`).
+- **Field Separation**: Each record uses a semicolon (`;`) as a field separator, dividing different attributes.
+- **Data Structure**: There are no explicit data type distinctions, all data is stored as strings, and type conversion is performed during program execution.
+- **No Index Mechanism**: The file system itself does not provide index support, and queries require sequential scanning of the entire file.
 
-#### DBMS中的数据组织
+#### SQL Statement Generation Method
 
-在PostgreSQL数据库中，测试数据通过关系型表结构进行组织。具体实现如下：
+All CRUD (Create, Read, Update, Delete) SQL statements are generated using a unified prepared statement method. The specific characteristics are as follows:
 
-**表结构设计**：使用users表存储食谱信息，表包含以下字段authou_id（主键）、author_name、gender、age、followers_count、following_count。
+- **Parameterized Query Mode**: Placeholders (`?`) replace direct string concatenation, which is a widely used practice in various programming languages and database systems to prevent SQL injection attacks.
+- **Dynamic Parameter Binding Mechanism**: Application variables are securely mapped to SQL parameters via type-safe parameter binding methods, ensuring correct and safe data type conversions.
+- **Standardized SQL Statement Structure**: Standard SQL syntax is used to construct all CRUD operation statements, whether it is a `SELECT`, `INSERT`, `UPDATE`, or `DELETE`, all following the same prepared statement generation mechanism.
+- **Error Handling Framework**: A unified exception handling mechanism is implemented to ensure that errors during SQL execution are correctly captured and meaningful error messages are returned.
+- **Resource Lifecycle Management**: The standard connection-execute-close resource management pattern is followed to ensure that database connections and other resources are properly released after the operation is complete.
+- **SQL Statement Reuse**: The prepared statement mechanism improves SQL execution efficiency by reducing redundant parsing and optimization overhead.
 
-- **数据类型**：根据字段含义使用不同的数据类型，如整数型（author_id）、文本型（author_name）、枚举型（gender）等，确保数据类型的准确性和存储空间的优化。
-- **约束条件**：author_id作为主键，确保每条记录的唯一性，便于快速定位和查询。
-- **索引优化**：数据库自动为主键字段创建索引，显著提升查询性能，尤其是针对ID的精确查询操作。
+#### File Operation Mechanism
 
-#### 文件系统中的数据组织
+File operations are implemented using the standard Java I/O library:
 
-文件系统中，测试数据以文本文件的形式组织，具体实现如下：
+- **Read Operation**: BufferedReader is used to read file content line by line, improving reading efficiency.
+- **Write Operation**: FileWriter is used to write to the file, supporting append mode.
+- **Temporary Files**: For delete and update operations, a temporary file strategy is employed to avoid conflicts while reading and writing simultaneously.
+- **File Replacement**: After the operation is completed, the original file is deleted, and the temporary file is renamed to the original file name.
 
-- **文件格式**：使用简单的文本文件（users.txt）存储所有用户记录。
-- **记录分隔**：每条记录占一行，通过换行符（\n）分隔不同记录。
-- **字段分隔**：每条记录内部使用分号（;）作为字段分隔符，将不同属性分开。
-- **数据结构**：没有显式的数据类型区分，所有数据以字符串形式存储，需要在程序运行时进行类型转换。
-- **无索引机制**：文件系统本身不提供索引支持，查询时需要顺序扫描整个文件。
+### 3. Test SQL Scripts and Program Source Code Description
 
-#### 测试SQL语句的生成方法
+The test involves 5 source code files: `DatabaseTest.java`, `FileTest.java`, `DatabaseOperations.java`, `FileOperation.java`, `DatabaseBetter.java`, and `user_10000.java`. Below is the functionality description of each file (the specific operation code is in the attachments):
 
-所有增删改查（CRUD）操作的SQL语句均采用统一的预编译语句（PreparedStatement）方式生成，具体特点如下：
+- **DatabaseTest.java**:
+   - Calls the DBMS test functions for insertion, query, update, and deletion, and prints the test results. Repeats the experiment five times, printing the result of each experiment and calculating the average.
+- **FileTest.java**:
+   - Calls the file test functions for insertion, query, update, and deletion, and prints the test results. Repeats the experiment five times, printing the result of each experiment and calculating the average.
+- **DatabaseOperations.java**:
+   - Interacts with PostgreSQL through JDBC, with functionalities including connection management and performing insert, update, query, and delete operations.
+   - **Insert Operation (addUsers)**: Uses a parameterized SQL `INSERT INTO` statement to insert data.
+   - **Query Operation (queryUsers)**: Uses a parameterized SQL `SELECT COUNT(*) FROM` statement to count matching records.
+   - **Update Operation (updateUsersAge)**: Uses a parameterized SQL `UPDATE` statement to increment the age of matching users.
+   - **Delete Operation (deleteUsers)**: Uses a parameterized SQL `DELETE FROM` statement to delete matching records.
+- **FileManipulation.java**:
+   - Manages user data through file I/O operations, with functionalities including file path management, data format, and CRUD operations for insert, query, update, and delete.
 
-- **参数化查询模式**：使用占位符（?）替代直接字符串拼接，这是一种广泛应用于各种编程语言和数据库系统的安全实践，能够有效防止SQL注入攻击。
-- **动态参数绑定机制**：通过类型化的参数绑定方法将应用程序变量安全地映射到SQL参数，确保数据类型转换的正确性和安全性。
-- **SQL语句结构标准化**：采用标准SQL语法统一构建所有CRUD操作语句，无论是SELECT查询、INSERT插入、UPDATE更新还是DELETE删除，均遵循相同的预编译语句生成机制。
-- **错误处理框架**：实现统一的异常捕获和处理机制，确保SQL执行过程中的错误能够被正确捕获并返回有意义的错误信息。
-- **资源生命周期管理**：遵循连接-执行-关闭的标准资源管理模式，确保数据库连接等资源在操作完成后被正确释放。
-- **SQL语句复用机制**：通过预编译语句机制提高SQL执行效率，减少重复解析和优化开销。
+### 4. Performance Comparison Analysis
 
-#### 文件操作机制
+| Operation Type      | DBMS Test Time (ms) | DBMS Optimized Test Time (ms) | File I/O Test Time (ms) |
+| ------------------- | ------------------- | ----------------------------- | ----------------------- |
+| Insert (insertTest) | 1681                | 268                           | 1208                    |
+| Delete (deleteTest) | 1556                | 118                           | 9857                    |
+| Query (selectTest)  | 1022                | 533                           | 8547                    |
+| Update (updateTest) | 2020                | 237                           | 10231                   |
 
-文件操作采用标准的Java I/O库实现：
+**Analysis:**
 
-- **读取操作**：使用`BufferedReader`逐行读取文件内容，提高读取效率。
-- **写入操作**：使用`FileWriter`直接写入文件，支持追加模式。
-- **临时文件**：对于删除和更新操作，采用临时文件策略，避免边读边写的冲突。
-- **文件替换**：操作完成后通过删除原文件并重命名临时文件的方式完成更新。
+1. When processing data (especially large-scale or complex datasets), using a DBMS such as PostgreSQL is far superior to managing data with a file system. The performance difference between DBMS and file I/O is significant. In conclusion, database systems have a clear advantage over direct file use when handling data.
+2. For frequently operated attributes, introducing indexes, implementing transaction control, and using batch operations can significantly improve database performance.
 
-### 3.测试SQL脚本与程序源代码描述
-
-测试涉及 5 个源代码文件：Client.java、DatabaseManipulation.java、DataFactory.java、DataManipulation.java、FileManipulation.java，文件功能如下：
-
-#### Client.java
-
-调用文件测试和 DBMS 测试的插入、查询、更新、删除函数，并打印测试结果。
-
-#### DataManipulation.java
-
-包含插入、查询、更新、删除四种测试功能的接口。
-
-#### DataFactory.java
-
-包含 createDataManipulation 函数，根据输入字符串参数创建数据操作对象 —— 输入字符串含 “file” 则返回文件操作对象，含 “database” 则返回数据库操作对象。
-
-#### DatabaseManipulation.java
-
-实现了DataManipulation接口，通过JDBC与PostgreSQL数据库交互，主要功能包括：
-
-**连接管理**：通过`getConnection()`和`closeConnection()`方法管理数据库连接，使用PostgreSQL JDBC驱动。
-
-**增删改查操作**：
-
-**添加操作（addUsers）**：
-
-- 使用参数化SQL插入语句 INSERT INTO task4advance2.users (authorid, authorname, gender, age, followers, following) VALUES (?, ?, ?, ?, ?, ?)
-- 实现细节：先通过分号分割输入字符串，然后使用setInt()、setString()方法绑定参数
-- 返回总的操作时间作为操作结果
-
-**查询操作（queryUsers）**：
-
-- 使用参数化SQL查询语句 SELECT COUNT(*) FROM task4advance2.users WHERE authorid = ?
-- 查找authorid与插入的csv中authorid一样的数据数
-- 通过setInt()方法绑定authorId参数
-- 返回总的操作时间作为操作结果
-
-**更新操作（**updateUsersAge**）**：
-
-- 使用参数化SQL更新语句 UPDATE task4advance2.users SET age = age + 1 WHERE authorid = ?
-- 将与插入的csv中authorid一样的用户年龄加一
-- 返回总的操作时间作为操作结果
-
-**删除操作（**deleteUsers**）**：
-
-- 使用参数化SQL删除语句DELETE FROM task4advance2.users WHERE authorid = ? WHERE authorid
- = ?`RecipeId = ?`
-- 删除与插入的csv中authorid一样的用户
-- 通过setInt()方法绑定RecipeId参数
-- 返回受影响的行数，0表示未找到匹配记录
-
-**性能监控**：
-
-- 所有操作方法均实现了耗时统计功能
-- 在操作完成（包括异常情况）后打印总耗时
-
-#### FileManipulation.java
-
-实现了`DataManipulation`接口，通过文件I/O操作管理食谱数据，主要功能包括：
-
-**文件路径管理**：通过常量`RECIPES_FILE`（值为"recipes.txt"）统一管理数据文件路径。
-
-**数据格式**：使用分号加空格（"; "）作为字段分隔符，每条记录占一行。
-
-**增删改查操作**：
-
-**添加操作（addUsers）**：
-
-- 使用`FileWriter`以追加模式（append=true）打开文件
-- 自动检测并添加换行符，确保每条记录单独占一行
-- 返回添加时间
-
-**查询操作（queryUsers）**：
-
-- 使用`BufferedReader`逐行读取文件内容
-- 顺序扫描直到找到匹配ID或遍历完文件
-- 返回查询时间
-
-**删除操作（**deleteUsers**）**：
-
-- 采用临时文件策略：创建temp_recipes.txt作为临时文件
-- 使用`BufferedReader`读取原文件，`FileWriter`写入临时文件
-- 逐行检查记录ID，只写入ID不匹配的记录
-- 操作完成后，删除原文件并重命名临时文件为原文件名
-- 返回操作时间
-
-**更新操作（**updateUsersAge**）**：
-
-- 同样采用临时文件策略
-- 找到目标ID记录后，使用`StringBuilder`构建更新后的行
-- 保留其他所有字段不变
-- 操作完成后进行文件替换
-- 返回操作时间
-
-**性能监控**：
-
-- 所有操作方法均实现了耗时统计功能
-- 在操作完成（包括异常情况）后打印总耗时
-
-**异常处理与资源管理**：
-
-- 使用try-with-resources语法自动管理文件资源（BufferedReader、FileWriter）
-- 捕获并打印所有IOException异常
-
-4，性能对比分析
-
-| 操作类型           | DBMS 测试耗时 | 文件 I/O 测试耗时 |
-| -------------- | --------- | ----------- |
-| 插入（insertTest） | 1681      |             |
-| 删除（deleteTest） | 1556      |             |
-| 查询（selectTest） | 1022      |             |
-| 更新（updateTest） | 2020      |             |
-
-测试结果表明，处理数据（尤其是大规模或复杂数据集）时，使用 PostgreSQL 等数据库系统远优于文件系统管理数据。DBMS 与文件 I/O 的性能差异显著。综上，数据库系统在数据处理方面较直接使用文件具有明显优势。
-
-?descriptionFromFileType=function+toLocaleUpperCase()+{+[native+code]+}+File&mimeType=application/octet-stream&fileName=CS307+task4+basic+part.md&fileType=undefined&fileExtension=md
+?descriptionFromFileType=function+toLocaleUpperCase()+{+[native+code]+}+File&mimeType=application/octet-stream&fileName=CS307+task4+basic+EN.md&fileType=undefined&fileExtension=md
