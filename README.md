@@ -1,22 +1,26 @@
-## README
+# CS307 Database Project 1 (Fall 2025)
 
-#### This is course project1 for CS307 Principle of Database 25Fall in SUSTech.  
+> **Course**: CS307 – Principles of Database
+> **University**: Southern University of Science and Technology (SUSTech)
+> **Final Score**: ⭐ **99 / 100**
 
-#### **Project Architecture**
+This repository contains **Project 1** for CS307, focusing on **relational database design, data preprocessing, large-scale data import, and performance evaluation** using PostgreSQL and MySQL.
+
+------
+
+## 📁 Project Structure
 
 ```text
 CS307_DATABASE_Project_1_25FALL/
 │
-├── .idea/
-│
-├── SQL/
+├── SQL/                         # Database schema & validation scripts
 │   ├── create_table_ddl_statements.sql
 │   └── select_table_records_number.sql
 │
-├── data_preprocessing/
+├── data_preprocessing/          # Python preprocessing scripts
 │   └── data preprocess.py
 │
-├── diagram/
+├── diagram/                     # Experimental results & visualizations
 │   ├── Task4_Advance1_HighCurrency/
 │   ├── task3_experiment1_screen/
 │   ├── task3_experiment2_screen/
@@ -27,7 +31,7 @@ CS307_DATABASE_Project_1_25FALL/
 │   ├── task3optimization1.png
 │   └── visualization_ver2.png
 │
-├── report/
+├── report/                      # Task reports (Markdown & assets)
 │   ├── Report of Task 3.assets/
 │   ├── CS307 task4 basic part.md
 │   ├── Data Preprocessing.md
@@ -39,10 +43,9 @@ CS307_DATABASE_Project_1_25FALL/
 │   ├── report of task4 bonus EN.md
 │   └── report of task4.md
 │
-├── src/
+├── src/                         # Java source code (JDBC + experiments)
 │   ├── Advanced2/
 │   ├── Experimental Results/
-│   ├── task 4 code/
 │   ├── task4/
 │   ├── task4_basic_version2/
 │   ├── Automation.java
@@ -63,124 +66,192 @@ CS307_DATABASE_Project_1_25FALL/
 │
 ├── CS307 Fall 2025 Project Part I.pdf
 ├── Report_final_version.pdf
-├── LICENSE
-├── README.md
-├── cs307_project1_25fall.iml
 ├── mysql-connector-j-9.5.0.jar
 ├── postgresql-42.2.5.jar
+├── LICENSE
+├── README.md
 └── .gitignore
-
 ```
 
-#### 1. Database Schema Overview
+------
 
-This project designs a **fully normalized PostgreSQL relational database** (13 tables) based on the SUSTC Recipes dataset (500k+ recipes, 1.4M+ reviews, 300k users).
- The schema satisfies:
+## 🗄️ 1. Database Schema Overview
 
-- **1NF** — all multi-valued fields normalized into relationship tables
-- **2NF** — no partial dependency in composite keys
-- **3NF** — no transitive dependency; derived attributes removed
-- **No circular foreign-key relationships**
-- **Every table reachable & expandable**
+This project designs a **fully normalized PostgreSQL relational database** with **13 tables**, based on the **SUSTech Recipes Dataset**, containing:
 
-#### Main Entities
+- **500,000+ recipes**
+- **1.4 million+ reviews**
+- **300,000+ users**
 
-- **users, recipes, reviews**
-- **keyword, ingredient, nutrition, recipe_time**
+### Normalization Guarantees
 
-#### Relationship Tables
+- **1NF** – All multi-valued attributes decomposed into relationship tables
+- **2NF** – No partial dependency on composite keys
+- **3NF** – No transitive dependency; derived attributes removed
+- ❌ No circular foreign-key dependencies
+- ✅ Every table is reachable and extensible
 
-- **following**, **recipe_favorite**, **likes_relationship**
-- **recipe_keyword**, **recipe_ingredient**, **recipe_instruction**
+### Core Entities
 
-Full DDL is under:
- `SQL/create_table_ddl_statements.sql`
+- `users`
+- `recipes`
+- `reviews`
+- `keyword`
+- `ingredient`
+- `nutrition`
+- `recipe_time`
 
-###  2. Data Import Pipeline
+### Relationship Tables
 
-The import workflow is implemented in **Java (JDBC)** and supports:
+- `following`
+- `recipe_favorite`
+- `likes_relationship`
+- `recipe_keyword`
+- `recipe_ingredient`
+- `recipe_instruction`
 
- Robust CSV parsing
-  Type conversion (ISO-8601 time → SQL TIME, numeric cleaning, etc.)
-  Batch insertion (1000 rows per batch)
-  `PreparedStatement` for performance
-  Automatic dictionary-table insertion (`keyword`, `ingredient`)
-  Relationship extraction (favorites, keywords, ingredients, instructions, likes, followings)
+📄 **Full schema definition**:
+`SQL/create_table_ddl_statements.sql`
 
-### Import Steps
+------
 
-1. **Connect to PostgreSQL**
-2. **Parse CSV records safely**, supporting embedded commas, quotes, multi-line fields
-3. **Insert into multiple tables** using 7 PreparedStatements per recipe
-4. **Execute in batches** and skip malformed records
-5. **Verify correctness** via `COUNT(*)` (script included)
+## 🚀 2. Data Import Pipeline (Java + JDBC)
 
-### CSV → Tables Mapping
+The data import pipeline is implemented in **Java (JDBC)** and is designed for **robustness, correctness, and performance**.
 
-| CSV File      | Import Method      | Affected Tables                                              |
-| ------------- | ------------------ | ------------------------------------------------------------ |
-| `users.csv`   | importUsersCsv()   | users, following                                             |
-| `recipes.csv` | importRecipesCsv() | recipes, nutrition, recipe_time, recipe_keyword, recipe_ingredient, recipe_instruction, recipe_favorite, keyword, ingredient |
-| `reviews.csv` | importReviewsCsv() | reviews, likes_relationship                                  |
+### Key Features
 
-### Automated Workflow
+- Safe CSV parsing
+  - Embedded commas
+  - Quoted fields
+  - Multi-line text
+- Automatic type conversion
+  - ISO-8601 → SQL `TIME`
+  - Numeric field cleanup
+- Batch insertion (**1000 rows per batch**)
+- `PreparedStatement` reuse for performance
+- Automatic dictionary table population (`keyword`, `ingredient`)
+- Relationship extraction:
+  - Favorites
+  - Keywords
+  - Ingredients
+  - Instructions
+  - Likes
+  - Followings
 
-Run **Automation.java**:
+------
+
+### Import Workflow
+
+1. Connect to PostgreSQL via JDBC
+2. Parse CSV records safely
+3. Insert records into multiple tables
+4. Execute batch inserts & skip malformed rows
+5. Validate correctness using `COUNT(*)`
+
+Validation script included:
+
+```sql
+SQL/select_table_records_number.sql
+```
+
+------
+
+### CSV → Table Mapping
+
+| CSV File      | Import Method        | Affected Tables                                              |
+| ------------- | -------------------- | ------------------------------------------------------------ |
+| `users.csv`   | `importUsersCsv()`   | users, following                                             |
+| `recipes.csv` | `importRecipesCsv()` | recipes, nutrition, recipe_time, recipe_keyword, recipe_ingredient, recipe_instruction, recipe_favorite, keyword, ingredient |
+| `reviews.csv` | `importReviewsCsv()` | reviews, likes_relationship                                  |
+
+------
+
+### ▶ Automated Execution
+
+Run **`Automation.java`** to complete the entire workflow:
 
 - Execute schema DDL
-- Import 3 CSVs
-- Validate correctness
+- Import all CSV files
+- Validate correctness automatically
 
-Input format example:
+**Example input:**
 
-```
+```text
 data/users.csv data/recipes.csv data/reviews.csv
 ```
 
-###  3. Data Preprocessing
+------
 
-Preprocessing is handled with Python (`preprocess/data_preprocess.py`):
+## 🧹 3. Data Preprocessing (Python)
 
-### Fixes include:
+Data preprocessing is handled by:
 
-- Removing **19 malformed review rows** (extra comma → missing AuthorId)
-- Adjusting inconsistent attributes:
-  - TotalTime mismatch
-  - followers_count / following_count inconsistency
-- Normalizing datatypes:
-  - RecipeId with `.0`
+```text
+data_preprocessing/data preprocess.py
+```
+
+### Preprocessing Fixes
+
+- ❌ Removed **19 malformed review rows**
+  - Caused by extra commas → missing `AuthorId`
+- 🔧 Resolved data inconsistencies:
+  - `TotalTime` mismatches
+  - `followers_count` / `following_count` mismatch
+- 🔄 Normalized data types:
+  - `RecipeId` ending with `.0`
   - ISO-8601 duration → seconds
-- Cleaning odd characters, unwanted quotes
+- 🧼 Cleaned:
+  - Odd Unicode characters
+  - Redundant quotes
 
-Cleaned files saved under `/data`.
+✅ Cleaned CSV files are saved under `/data`.
 
-###  4. Performance Evaluation (Task 4)
+------
 
-Experiments compare **DBMS vs File I/O** for:
+## ⚡ 4. Performance Evaluation (Task 4)
 
-- INSERT
-- DELETE
-- UPDATE
-- SELECT
-- High-concurrency (1 → 100 threads)
-- PostgreSQL vs MySQL (advanced)
+Performance experiments compare:
 
-###  5. Advanced Optimization
+- **Database (PostgreSQL / MySQL)** vs **File I/O**
+- Operations tested:
+  - `INSERT`
+  - `DELETE`
+  - `UPDATE`
+  - `SELECT`
+- High-concurrency scenarios:
+  - **1 → 100 threads**
+- Advanced comparison:
+  - PostgreSQL vs MySQL
 
-### **Software-Level**
+📊 Results and screenshots are available in the `diagram/` directory.
 
-- Large batch size (1000)
+------
+
+## 🧠 5. Advanced Optimization
+
+### Software-Level Optimizations
+
+- Batch insertion (1000 rows)
 - PreparedStatement reuse
-- HashSet cache for foreign-key existence
-   → ~27% faster on users.csv import
-- Potential improvement: `COPY FROM STDIN` via `CopyManager`
+- `HashSet` cache for foreign-key existence checks
+  → **~27% speedup** on `users.csv` import
+- Potential future improvement:
+  - PostgreSQL `COPY FROM STDIN` via `CopyManager`
 
-### **Hardware-Level**
+------
+
+### Hardware / DB-Level Optimizations
 
 - NVMe SSD
 - WAL optimization
-- cache tuning (`shared_buffers`, `work_mem`, `effective_cache_size`)
+- PostgreSQL tuning:
+  - `shared_buffers`
+  - `work_mem`
+  - `effective_cache_size`
 
-### 6. License
+------
 
-This repository will be released under the **MIT License** after the project deadline.
+## 📄 6. License
+
+This repository will be released under the **MIT License** after the course project deadline.
